@@ -1,30 +1,60 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '4.0.1'
+    id 'org.springframework.boot' version '3.2.12'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
 }
 
-group = 'org.example'
+group = 'ru.rea.ippk'
 version = '0.0.1-SNAPSHOT'
 description = 'template generator'
 
 java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
-    }
+    toolchain { languageVersion = JavaLanguageVersion.of(17) }
 }
 
 repositories {
     mavenCentral()
 }
 
+configurations.all {
+    exclude group: 'commons-logging', module: 'commons-logging'
+    exclude group: 'org.slf4j', module: 'slf4j-simple'
+}
+
+javafx {
+    version = '21.0.5'
+    modules = [ 'javafx.controls' ] // этого достаточно, остальное подтянется
+}
+
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
-    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-    testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    implementation 'commons-io:commons-io:2.16.1'
+
+    compileOnly 'org.projectlombok:lombok:1.18.34'
+    annotationProcessor 'org.projectlombok:lombok:1.18.34'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
+    implementation 'ch.qos.logback:logback-classic:1.5.6'
+    implementation 'ch.qos.logback:logback-core:1.5.6'
+    implementation 'org.slf4j:slf4j-api:2.0.16'
+
+    implementation 'org.odftoolkit:odfdom-java:0.12.0'
+
+    // BIRT 4.20.0
+    implementation 'org.eclipse.birt:org.eclipse.birt.core:4.20.0'
+    implementation 'org.eclipse.birt:org.eclipse.birt.report.engine:4.20.0'
+    implementation 'org.eclipse.birt:org.eclipse.birt.report.model:4.20.0'
+    implementation 'org.eclipse.birt:org.eclipse.birt.report.engine.script.javascript:4.20.0'
+    implementation 'org.eclipse.birt:org.eclipse.birt.report.engine.emitter.odt:4.20.0'
+    implementation 'org.eclipse.birt:org.eclipse.birt.report.engine.emitter.ods:4.20.0'
+    implementation 'org.eclipse.birt:org.eclipse.birt.report.engine.emitter.config.odt:4.20.0'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
