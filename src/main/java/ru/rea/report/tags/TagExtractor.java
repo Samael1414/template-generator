@@ -9,16 +9,7 @@ import java.util.regex.Pattern;
 @Component
 public class TagExtractor {
 
-    // Основной формат для ODS у тебя: [tag_name]
-    private static final Pattern TAG_SQUARE = Pattern.compile("\\[([^\\[\\]]{1,120})\\]");
-    // Дополнительно поддержим старый формат: <tag_name>
-    private static final Pattern TAG_ANGLE  = Pattern.compile("<([^<>]{1,120})>");
-
-    private final TagNormalizer normalizer;
-
-    public TagExtractor(TagNormalizer normalizer) {
-        this.normalizer = normalizer;
-    }
+    private static final Pattern BRACKET_TAG = Pattern.compile("\\[([A-Za-z_][A-Za-z0-9_]{0,120})]");
 
     public TagRegistry extract(TemplateDocumentIR ir) {
         TagRegistry reg = new TagRegistry();
@@ -28,7 +19,9 @@ public class TagExtractor {
             if (block instanceof ParagraphIR p) {
                 scanText(p.getText(), reg);
             } else if (block instanceof TableIR t) {
+                if (t.getRows() == null) continue;
                 for (RowIR row : t.getRows()) {
+                    if (row.getCells() == null) continue;
                     for (CellIR cell : row.getCells()) {
                         scanText(cell.getText(), reg);
                     }
@@ -38,21 +31,12 @@ public class TagExtractor {
         return reg;
     }
 
-    private void scanText(String text, TagRegistry reg) {
+    private static void scanText(String text, TagRegistry reg) {
         if (text == null || text.isBlank()) return;
 
-        scanBy(text, reg, TAG_SQUARE);
-        scanBy(text, reg, TAG_ANGLE);
-    }
-
-    private void scanBy(String text, TagRegistry reg, Pattern pattern) {
-        Matcher m = pattern.matcher(text);
+        Matcher m = BRACKET_TAG.matcher(text);
         while (m.find()) {
-            String rawInside = m.group(1).trim();      // то, что внутри скобок
-            if (rawInside.isBlank()) continue;
-
-            String key = normalizer.normalize(rawInside);
-            reg.register(rawInside, key);
+            reg.registerParam(m.group(1));
         }
     }
 }

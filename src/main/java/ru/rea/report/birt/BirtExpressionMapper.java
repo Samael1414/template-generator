@@ -1,99 +1,71 @@
 package ru.rea.report.birt;
 
 import org.springframework.stereotype.Component;
+import ru.rea.report.tags.TagRegistry;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Component
 public class BirtExpressionMapper {
 
-    // Ищем строго [A-Za-z0-9_] чтобы не ловить мусор
-    private static final Pattern BRACKET_PARAM = Pattern.compile("\\[([A-Za-z_][A-Za-z0-9_]{0,120})]");
+    private static final Pattern BRACKET_PARAM =
+            Pattern.compile("\\[([A-Za-z_][A-Za-z0-9_]{0,120})]");
 
-    /**
-     * Для TextItem с contentType=HTML:
-     *  - превращаем [param] в &{params["param"].value}
-     *  - экранируем HTML (чтобы ODS/ODT спецсимволы не ломали rptdesign)
-     *  - выражения BIRT оставляем НЕэкранированными
-     */
-    public String mapTextToBirtHtml(String text) {
-        if (text == null || text.isBlank()) {
-            return "<div></div>";
-        }
-
-        // 1) заменяем [param] на временные токены, чтобы потом не заэкранировать &{...}
-        List<String> exprs = new ArrayList<>();
-        String withTokens = replaceBracketParamsToTokens(text, exprs);
-
-        // 2) экранируем HTML
-        String escaped = escapeHtml(withTokens);
-
-        // 3) возвращаем выражения на место (токены уже экранированы, а нам нужно сырьё)
-        String restored = restoreTokens(escaped, exprs);
-
-        // 4) переносы строк в HTML
-        restored = restored.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "<br/>");
-
-        return "<div>" + restored + "</div>";
+    /** true если текст содержит хотя бы один [param] */
+    public boolean hasParams(String text) {
+        if (text == null || text.isBlank()) return false;
+        return BRACKET_PARAM.matcher(text).find();
     }
 
     /**
-     * Для TextItem с contentType=PLAIN:
-     *  - оставляем обычный текст как есть
-     *  - [param] -> &{params["param"].value}
-     * Важно: PLAIN обычно быстрее/проще, но если BIRT у тебя не вычисляет &{...} в PLAIN,
-     * тогда используй HTML-вариант в BirtDesignBuilder.
+     * Строит JS expression для TextData.valueExpr, возвращающий HTML-строку:
+     * "abc<br/>" + params["x"].value + " def"
      */
-    public String mapTextToBirtPlain(String text) {
-        if (text == null || text.isBlank()) return "";
-        // В PLAIN ничего не экранируем, просто подстановка
-        return replaceBracketParamsToExpr(text);
-    }
+    public String toHtmlValueExpr(String text) {
+        if (text == null) return "\"\"";
 
-    private static String replaceBracketParamsToExpr(String text) {
-        Matcher m = BRACKET_PARAM.matcher(text);
-        StringBuffer sb = new StringBuffer();
+        // нормализуем переносы сразу
+        String src = text.replace("\r\n", "\n").replace("\r", "\n");
+
+        Matcher m = BRACKET_PARAM.matcher(src);
+        StringBuilder expr = new StringBuilder();
+        int pos = 0;
+        boolean first = true;
+
         while (m.find()) {
+            String before = src.substring(pos, m.start());
             String name = m.group(1);
-            String expr = "&{params[\"" + name + "\"].value}";
-            m.appendReplacement(sb, Matcher.quoteReplacement(expr));
+
+            if (!before.isEmpty()) {
+                String lit = escapeJsString(before).replace("\n", "<br/>");
+                if (!first) expr.append(" + ");
+                expr.append("\"").append(lit).append("\"");
+                first = false;
+            }
+
+            if (!first) expr.append(" + ");
+            expr.append("params[\"").append(name).append("\"].value");
+            first = false;
+
+            pos = m.end();
         }
-        m.appendTail(sb);
-        return sb.toString();
+
+        String tail = src.substring(pos);
+        if (!tail.isEmpty() || first) {
+            String lit = escapeJsString(tail).replace("\n", "<br/>");
+            if (!first) expr.append(" + ");
+            expr.append("\"").append(lit).append("\"");
+        }
+
+        return expr.toString();
     }
 
-    private static String replaceBracketParamsToTokens(String text, List<String> outExprs) {
-        Matcher m = BRACKET_PARAM.matcher(text);
-        StringBuffer sb = new StringBuffer();
-        int idx = 0;
-        while (m.find()) {
-            String name = m.group(1);
-            String expr = "&{params[\"" + name + "\"].value}";
-            outExprs.add(expr);
-
-            String token = "___TPLGEN_EXPR_" + (idx++) + "___";
-            m.appendReplacement(sb, Matcher.quoteReplacement(token));
-        }
-        m.appendTail(sb);
-        return sb.toString();
-    }
-
-    private static String restoreTokens(String escaped, List<String> exprs) {
-        String result = escaped;
-        for (int i = 0; i < exprs.size(); i++) {
-            String token = "___TPLGEN_EXPR_" + i + "___";
-            result = result.replace(token, exprs.get(i));
-        }
-        return result;
-    }
-
-    private static String escapeHtml(String s) {
-        // минимально необходимое
-        return s.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;");
+    private static String escapeJsString(String s) {
+        // для JavaScript-строки в двойных кавычках
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\u2028", "")   // на всякий случай
+                .replace("\u2029", "");
     }
 }

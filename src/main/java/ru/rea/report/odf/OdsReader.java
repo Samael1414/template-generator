@@ -18,7 +18,6 @@ public class OdsReader {
     private static final int HARD_MAX_ROWS = 250;
     private static final int HARD_MAX_COLS = 80;
 
-    // ODF table namespace
     private static final String TABLE_NS = "urn:oasis:names:tc:opendocument:xmlns:table:1.0";
 
     public TemplateDocumentIR read(InputStream in) {
@@ -29,7 +28,6 @@ public class OdsReader {
 
             OdfTable sheet = tables.get(0);
 
-            // 1) used-range
             int scanRows = Math.min(sheet.getRowCount(), HARD_MAX_ROWS);
             int scanCols = Math.min(sheet.getColumnCount(), HARD_MAX_COLS);
 
@@ -38,20 +36,19 @@ public class OdsReader {
 
             for (int r = 0; r < scanRows; r++) {
                 OdfTableRow row = sheet.getRowByIndex(r);
+                boolean rowHasData = false;
 
                 for (int c = 0; c < scanCols; c++) {
                     OdfTableCell cell = row.getCellByIndex(c);
+                    if (isCoveredCell(cell)) continue;
+
                     String text = fastCellText(cell);
-                    if (text == null || text.isBlank()) {
-                        continue;
+                    if (text != null && !text.isBlank()) {
+                        rowHasData = true;
+                        lastCol = Math.max(lastCol, c);
                     }
-
-                    int cs = colSpanOf(cell);
-                    int rs = rowSpanOf(cell);
-
-                    lastCol = Math.max(lastCol, c + cs - 1);
-                    lastRow = Math.max(lastRow, r + rs - 1);
                 }
+                if (rowHasData) lastRow = r;
             }
 
             if (lastRow < 0 || lastCol < 0) {
@@ -70,17 +67,25 @@ public class OdsReader {
                 for (int c = 0; c < cols; c++) {
                     OdfTableCell cell = row.getCellByIndex(c);
 
-                    CellIR cellIR = new CellIR(fastCellText(cell));
+                    boolean covered = isCoveredCell(cell);
 
-                    // span через XML-атрибуты
-                    int cs = colSpanOf(cell);
-                    int rs = rowSpanOf(cell);
-                    if (cs > 1) cellIR.setColSpan(cs);
-                    if (rs > 1) cellIR.setRowSpan(rs);
+                    CellIR cellIR = new CellIR(fastCellText(cell))
+                            .setCovered(covered);
+
+                    if (!covered) {
+                        int cs = colSpanOf(cell);
+                        int rs = rowSpanOf(cell);
+
+                        // КЛЮЧЕВОЕ: clamp чтобы span не выходил за used-range
+                        cs = Math.min(cs, cols - c);
+                        rs = Math.min(rs, rows - r);
+
+                        if (cs > 1) cellIR.setColSpan(cs);
+                        if (rs > 1) cellIR.setRowSpan(rs);
+                    }
 
                     rowIR.addCell(cellIR);
                 }
-
                 tableIR.addRow(rowIR);
             }
 
@@ -95,19 +100,27 @@ public class OdsReader {
 
     private static String fastCellText(OdfTableCell cell) {
         if (cell == null) return "";
-
-        // 1) строковое значение (быстрее)
         try {
             String s = cell.getStringValue();
             if (s != null && !s.isBlank()) return s;
-        } catch (Throwable ignore) {}
-
-        // 2) displayText (универсально)
+        } catch (Throwable ignore) { }
         try {
             String s = cell.getDisplayText();
-            return s == null ? "" : s;
+            return (s == null ? "" : s);
         } catch (Throwable ignore) {
             return "";
+        }
+    }
+
+    private static int getIntAttr(Element el, String namespaceUri, String localName, int def) {
+        if (el == null) return def;
+        String v = el.getAttributeNS(namespaceUri, localName);
+        if (v == null || v.isBlank()) return def;
+        try {
+            int n = Integer.parseInt(v.trim());
+            return Math.max(n, 1);
+        } catch (Exception ignore) {
+            return def;
         }
     }
 
@@ -121,17 +134,9 @@ public class OdsReader {
         return getIntAttr(el, TABLE_NS, "number-rows-spanned", 1);
     }
 
-    private static int getIntAttr(Element el, String namespaceUri, String localName, int def) {
-        if (el == null) return def;
-
-        String v = el.getAttributeNS(namespaceUri, localName);
-        if (v == null || v.isBlank()) return def;
-
-        try {
-            int n = Integer.parseInt(v.trim());
-            return Math.max(n, 1);
-        } catch (Exception ignore) {
-            return def;
-        }
+    private static boolean isCoveredCell(OdfTableCell cell) {
+        if (cell == null) return false;
+        Element el = (Element) cell.getOdfElement();
+        return "covered-table-cell".equals(el.getLocalName());
     }
 }

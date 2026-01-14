@@ -14,6 +14,8 @@ public final class CellIR {
     private String text;
     private int colSpan = 1;
     private int rowSpan = 1;
+    private boolean covered = false;
+
     private StyleIR style = new StyleIR();
 
     public CellIR(String text) {
@@ -32,6 +34,15 @@ public final class CellIR {
 
     public CellIR setStyle(StyleIR style) {
         this.style = (style == null ? new StyleIR() : style);
+        return this;
+    }
+
+    public boolean isCovered() {
+        return covered;
+    }
+
+    public CellIR setCovered(boolean covered) {
+        this.covered = covered;
         return this;
     }
 }
