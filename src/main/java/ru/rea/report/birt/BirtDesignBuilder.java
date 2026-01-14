@@ -14,6 +14,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -69,7 +70,7 @@ public class BirtDesignBuilder {
     private void declareParams(ReportDesignHandle report, TagRegistry tags) throws SemanticException {
         if (tags == null || tags.isEmpty()) return;
 
-        for (var e : tags.entries()) {
+        for (Map.Entry<String, String> e : tags.entries()) {
             String paramName = e.getValue();
 
             if (hasParameter(report, paramName)) {
@@ -97,6 +98,7 @@ public class BirtDesignBuilder {
         if (rows <= 0 || cols <= 0) return null;
 
         GridHandle grid = report.getElementFactory().newGridItem(null, cols, rows);
+        boolean[][] occupied = new boolean[rows][cols];
 
         for (int r = 0; r < rows; r++) {
             RowIR row = table.getRows().get(r);
@@ -104,17 +106,27 @@ public class BirtDesignBuilder {
 
             int limit = row.getCells() == null ? 0 : row.getCells().size();
             for (int c = 0; c < limit; c++) {
+                if (isOccupied(occupied, r, c)) {
+                    continue;
+                }
                 CellIR cell = row.getCells().get(c);
                 CellHandle ghCell = (CellHandle) gridRow.getCells().get(c);
 
-                if (cell.getColSpan() > 1) ghCell.setColumnSpan(cell.getColSpan());
-                if (cell.getRowSpan() > 1) ghCell.setRowSpan(cell.getRowSpan());
+                int colSpan = Math.max(cell.getColSpan(), 1);
+                int rowSpan = Math.max(cell.getRowSpan(), 1);
+                colSpan = clampSpan(colSpan, cols - c);
+                rowSpan = clampSpan(rowSpan, rows - r);
+
+                if (colSpan > 1) ghCell.setColumnSpan(colSpan);
+                if (rowSpan > 1) ghCell.setRowSpan(rowSpan);
 
                 TextItemHandle text = report.getElementFactory().newTextItem(null);
                 text.setContentType(DesignChoiceConstants.TEXT_DATA_CONTENT_TYPE_HTML);
                 text.setContent(exprMapper.mapTextToBirtHtml(cell.getText(), tags));
 
                 ghCell.getContent().add(text);
+
+                markOccupied(occupied, r, c, rowSpan, colSpan);
             }
         }
         return grid;
@@ -135,6 +147,24 @@ public class BirtDesignBuilder {
             }
         }
         return false;
+    }
+
+    private static boolean isOccupied(boolean[][] occupied, int r, int c) {
+        if (r < 0 || c < 0 || r >= occupied.length || c >= occupied[r].length) return false;
+        return occupied[r][c];
+    }
+
+    private static void markOccupied(boolean[][] occupied, int r, int c, int rowSpan, int colSpan) {
+        for (int rr = r; rr < Math.min(r + rowSpan, occupied.length); rr++) {
+            for (int cc = c; cc < Math.min(c + colSpan, occupied[rr].length); cc++) {
+                occupied[rr][cc] = true;
+            }
+        }
+    }
+
+    private static int clampSpan(int span, int maxAvailable) {
+        if (maxAvailable <= 0) return 1;
+        return Math.min(span, maxAvailable);
     }
 
 }
