@@ -14,6 +14,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -69,7 +70,7 @@ public class BirtDesignBuilder {
     private void declareParams(ReportDesignHandle report, TagRegistry tags) throws SemanticException {
         if (tags == null || tags.isEmpty()) return;
 
-        for (var e : tags.entries()) {
+        for (Map.Entry<String, String> e : tags.entries()) {
             String paramName = e.getValue();
 
             if (hasParameter(report, paramName)) {
