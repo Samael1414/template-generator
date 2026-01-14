@@ -38,17 +38,20 @@ public class OdsReader {
 
             for (int r = 0; r < scanRows; r++) {
                 OdfTableRow row = sheet.getRowByIndex(r);
-                boolean rowHasData = false;
 
                 for (int c = 0; c < scanCols; c++) {
                     OdfTableCell cell = row.getCellByIndex(c);
                     String text = fastCellText(cell);
-                    if (text != null && !text.isBlank()) {
-                        rowHasData = true;
-                        lastCol = Math.max(lastCol, c);
+                    if (text == null || text.isBlank()) {
+                        continue;
                     }
+
+                    int cs = colSpanOf(cell);
+                    int rs = rowSpanOf(cell);
+
+                    lastCol = Math.max(lastCol, c + cs - 1);
+                    lastRow = Math.max(lastRow, r + rs - 1);
                 }
-                if (rowHasData) lastRow = r;
             }
 
             if (lastRow < 0 || lastCol < 0) {
