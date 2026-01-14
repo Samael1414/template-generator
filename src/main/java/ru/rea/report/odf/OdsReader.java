@@ -29,7 +29,7 @@ public class OdsReader {
 
             OdfTable sheet = tables.get(0);
 
-            // 1) сканируем used-range
+            // 1) used-range
             int scanRows = Math.min(sheet.getRowCount(), HARD_MAX_ROWS);
             int scanCols = Math.min(sheet.getColumnCount(), HARD_MAX_COLS);
 
@@ -38,20 +38,17 @@ public class OdsReader {
 
             for (int r = 0; r < scanRows; r++) {
                 OdfTableRow row = sheet.getRowByIndex(r);
+                boolean rowHasData = false;
 
                 for (int c = 0; c < scanCols; c++) {
                     OdfTableCell cell = row.getCellByIndex(c);
                     String text = fastCellText(cell);
-                    if (text == null || text.isBlank()) {
-                        continue;
+                    if (text != null && !text.isBlank()) {
+                        rowHasData = true;
+                        lastCol = Math.max(lastCol, c);
                     }
-
-                    int cs = colSpanOf(cell);
-                    int rs = rowSpanOf(cell);
-
-                    lastCol = Math.max(lastCol, c + cs - 1);
-                    lastRow = Math.max(lastRow, r + rs - 1);
                 }
+                if (rowHasData) lastRow = r;
             }
 
             if (lastRow < 0 || lastCol < 0) {
@@ -72,6 +69,7 @@ public class OdsReader {
 
                     CellIR cellIR = new CellIR(fastCellText(cell));
 
+                    // span через XML-атрибуты
                     int cs = colSpanOf(cell);
                     int rs = rowSpanOf(cell);
                     if (cs > 1) cellIR.setColSpan(cs);
@@ -95,20 +93,29 @@ public class OdsReader {
     private static String fastCellText(OdfTableCell cell) {
         if (cell == null) return "";
 
-        // 1) быстрый вариант для строк
+        // 1) строковое значение (быстрее)
         try {
             String s = cell.getStringValue();
             if (s != null && !s.isBlank()) return s;
-        } catch (Throwable ignore) {
-        }
+        } catch (Throwable ignore) {}
 
-        // 2) универсальный, но тяжелее
+        // 2) displayText (универсально)
         try {
             String s = cell.getDisplayText();
-            return (s == null ? "" : s);
+            return s == null ? "" : s;
         } catch (Throwable ignore) {
             return "";
         }
+    }
+
+    private static int colSpanOf(OdfTableCell cell) {
+        Element el = (Element) cell.getOdfElement();
+        return getIntAttr(el, TABLE_NS, "number-columns-spanned", 1);
+    }
+
+    private static int rowSpanOf(OdfTableCell cell) {
+        Element el = (Element) cell.getOdfElement();
+        return getIntAttr(el, TABLE_NS, "number-rows-spanned", 1);
     }
 
     private static int getIntAttr(Element el, String namespaceUri, String localName, int def) {
@@ -123,15 +130,5 @@ public class OdsReader {
         } catch (Exception ignore) {
             return def;
         }
-    }
-
-    private static int colSpanOf(OdfTableCell cell) {
-        Element el = (Element) cell.getOdfElement();
-        return getIntAttr(el, TABLE_NS, "number-columns-spanned", 1);
-    }
-
-    private static int rowSpanOf(OdfTableCell cell) {
-        Element el = (Element) cell.getOdfElement();
-        return getIntAttr(el, TABLE_NS, "number-rows-spanned", 1);
     }
 }
