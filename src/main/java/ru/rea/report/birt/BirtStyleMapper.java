@@ -24,14 +24,12 @@ public class BirtStyleMapper {
                 handle.setProperty(StyleHandle.FONT_SIZE_PROP, style.getFontSizePt() + "pt");
             }
             if (style.getAlign() != null && !style.getAlign().isBlank()) {
-                // left/center/right
                 handle.setProperty(StyleHandle.TEXT_ALIGN_PROP, style.getAlign());
             }
             if (style.getBackgroundColor() != null && !style.getBackgroundColor().isBlank()) {
                 handle.setProperty(StyleHandle.BACKGROUND_COLOR_PROP, style.getBackgroundColor());
             }
         } catch (SemanticException ex) {
-            // MVP: не валим генерацию из-за стиля
             System.out.println("[TPLGEN] style-apply failed: " + ex.getMessage());
         }
     }

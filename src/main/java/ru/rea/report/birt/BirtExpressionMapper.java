@@ -12,16 +12,23 @@ public class BirtExpressionMapper {
     private static final Pattern BRACKET_PARAM =
             Pattern.compile("\\[([A-Za-z_][A-Za-z0-9_]{0,120})]");
 
-    /** true если текст содержит хотя бы один [param] */
     public boolean hasParams(String text) {
         if (text == null || text.isBlank()) return false;
         return BRACKET_PARAM.matcher(text).find();
     }
 
-    /**
-     * Строит JS expression для TextData.valueExpr, возвращающий HTML-строку:
-     * "abc<br/>" + params["x"].value + " def"
-     */
+    public boolean containsTagsOrParams(String s) {
+        if (s == null || s.isBlank()) return false;
+
+        if (s.matches(".*\\[[A-Za-z0-9_]+\\].*")) return true;
+
+        if (s.contains("${")) return true;
+
+        return false;
+    }
+
+
+
     public String toHtmlValueExpr(String text) {
         if (text == null) return "\"\"";
 
@@ -62,10 +69,9 @@ public class BirtExpressionMapper {
     }
 
     private static String escapeJsString(String s) {
-        // для JavaScript-строки в двойных кавычках
         return s.replace("\\", "\\\\")
                 .replace("\"", "\\\"")
-                .replace("\u2028", "")   // на всякий случай
+                .replace("\u2028", "")
                 .replace("\u2029", "");
     }
 }

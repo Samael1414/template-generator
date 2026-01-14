@@ -94,7 +94,6 @@ public class TemplateGeneratorWindow {
             }
         });
 
-        // ВАЖНО: конвертацию делаем в background thread
         runBtn.setOnAction(e -> {
             if (inputFile[0] == null || outputFile[0] == null) return;
 

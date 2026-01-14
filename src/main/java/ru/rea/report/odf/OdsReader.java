@@ -76,7 +76,6 @@ public class OdsReader {
                         int cs = colSpanOf(cell);
                         int rs = rowSpanOf(cell);
 
-                        // КЛЮЧЕВОЕ: clamp чтобы span не выходил за used-range
                         cs = Math.min(cs, cols - c);
                         rs = Math.min(rs, rows - r);
 

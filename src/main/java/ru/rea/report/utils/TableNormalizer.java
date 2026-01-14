@@ -22,7 +22,6 @@ public final class TableNormalizer {
         List<RowIR> rows = table.getRows();
         if (rows == null || rows.isEmpty()) return;
 
-        // 1) последняя непустая строка/колонка с учетом merge (span)
         int lastRow = -1;
         int lastCol = -1;
         for (int r = 0; r < rows.size(); r++) {
@@ -43,12 +42,10 @@ public final class TableNormalizer {
                 lastCol = Math.max(lastCol, c + cell.getColSpan() - 1);
             }
         }
-        if (lastRow == -1 || lastCol == -1) return; // вся таблица пустая
+        if (lastRow == -1 || lastCol == -1) return;
 
-        // 3) обрезаем строки (хвост)
         rows.subList(lastRow + 1, rows.size()).clear();
 
-        // 4) обрезаем колонки в каждой строке
         for (RowIR row : rows) {
             if (row.getCells() == null) continue;
             if (lastCol + 1 < row.getCells().size()) {
