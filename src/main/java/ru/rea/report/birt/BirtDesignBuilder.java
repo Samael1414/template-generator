@@ -282,7 +282,12 @@ public class BirtDesignBuilder {
                     int mc = masterCol[r][c];
 
                     if (mr >= 0 && mc >= 0) {
-                        markCoveredDrop(ghCell, r, c, log);
+                        CellHandle masterCell = cellHandles[mr][mc];
+                        if (masterCell != null) {
+                            markCoveredDrop(ghCell, masterCell, r, c, log);
+                        } else {
+                            markCoveredEmpty(ghCell, r, c, log);
+                        }
                     } else {
                         markCoveredEmpty(ghCell, r, c, log);
                     }
@@ -361,14 +366,14 @@ public class BirtDesignBuilder {
         log.i("covered cell cleared (no master) r=" + r + " c=" + c);
     }
 
-    private static void markCoveredDrop(CellHandle cell, int r, int c, DebugSink log) throws SemanticException {
+    private static void markCoveredDrop(CellHandle cell, CellHandle masterCell, int r, int c, DebugSink log) throws SemanticException {
         clearSlot(cell.getContent());
 
         cell.clearProperty(CellHandle.COL_SPAN_PROP);
         cell.clearProperty(CellHandle.ROW_SPAN_PROP);
 
         // ВАЖНО: drop должен быть строкой id master
-        cell.setProperty(CellHandle.DROP_PROP, "all");
+        cell.setProperty(CellHandle.DROP_PROP, String.valueOf(masterCell.getID()));
 
 
         // чистим визуальные стили у covered (они “живут” на мастере)
@@ -390,7 +395,7 @@ public class BirtDesignBuilder {
         cell.clearProperty(StyleHandle.BORDER_LEFT_WIDTH_PROP);
         cell.clearProperty(StyleHandle.BORDER_RIGHT_WIDTH_PROP);
 
-        log.i("covered cell drop r=" + r + " c=" + c );
+        log.i("covered cell drop r=" + r + " c=" + c + " masterId=" + masterCell.getID());
     }
 
     private static void validateGridStructure(GridHandle grid) throws SemanticException {
