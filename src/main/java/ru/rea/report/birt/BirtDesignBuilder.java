@@ -399,7 +399,7 @@ public class BirtDesignBuilder {
 
         cell.clearProperty(CellHandle.COL_SPAN_PROP);
         cell.clearProperty(CellHandle.ROW_SPAN_PROP);
-        cell.setProperty(CellHandle.DROP_PROP, master);
+        cell.setProperty(CellHandle.DROP_PROP, String.valueOf(master.getID()));
 
         cell.clearProperty(StyleHandle.BACKGROUND_COLOR_PROP);
         cell.clearProperty(StyleHandle.TEXT_ALIGN_PROP);
