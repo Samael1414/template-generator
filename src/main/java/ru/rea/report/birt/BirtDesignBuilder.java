@@ -244,6 +244,33 @@ public class BirtDesignBuilder {
 
         int mastersWithSpan = 0;
         int coveredCleared = 0;
+        int coveredDropped = 0;
+
+        int[][] masterRow = new int[rows][cols];
+        int[][] masterCol = new int[rows][cols];
+        for (int r = 0; r < rows; r++) {
+            Arrays.fill(masterRow[r], -1);
+            Arrays.fill(masterCol[r], -1);
+        }
+
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                CellIR cell = m[r][c];
+                if (cell == null || cell.isCovered()) continue;
+
+                int cs = Math.min(Math.max(cell.getColSpan(), 1), cols - c);
+                int rs = Math.min(Math.max(cell.getRowSpan(), 1), rows - r);
+
+                for (int rr = r; rr < r + rs; rr++) {
+                    for (int cc = c; cc < c + cs; cc++) {
+                        masterRow[rr][cc] = r;
+                        masterCol[rr][cc] = c;
+                    }
+                }
+            }
+        }
+
+        CellHandle[][] cellHandles = new CellHandle[rows][cols];
 
         for (int r = 0; r < rows; r++) {
             RowHandle gridRow = (RowHandle) grid.getRows().get(r);
@@ -254,6 +281,7 @@ public class BirtDesignBuilder {
 
             for (int c = 0; c < cols; c++) {
                 CellHandle ghCell = (CellHandle) gridRow.getCells().get(c);
+                cellHandles[r][c] = ghCell;
                 CellIR cell = m[r][c];
 
                 if (cell == null) {
@@ -262,8 +290,21 @@ public class BirtDesignBuilder {
                 }
 
                 if (cell.isCovered()) {
-                    markCoveredEmpty(ghCell, r, c, log);
-                    coveredCleared++;
+                    int mr = masterRow[r][c];
+                    int mc = masterCol[r][c];
+                    if (mr >= 0 && mc >= 0) {
+                        CellHandle master = cellHandles[mr][mc];
+                        if (master != null) {
+                            markCoveredDrop(ghCell, master, r, c, log);
+                            coveredDropped++;
+                        } else {
+                            markCoveredEmpty(ghCell, r, c, log);
+                            coveredCleared++;
+                        }
+                    } else {
+                        markCoveredEmpty(ghCell, r, c, log);
+                        coveredCleared++;
+                    }
                     continue;
                 }
 
@@ -300,7 +341,9 @@ public class BirtDesignBuilder {
             }
         }
 
-        log.i("grid:stats mastersWithSpan=" + mastersWithSpan + " coveredCleared=" + coveredCleared);
+        log.i("grid:stats mastersWithSpan=" + mastersWithSpan
+                + " coveredDropped=" + coveredDropped
+                + " coveredCleared=" + coveredCleared);
 
         validateGridStructure(grid);
         validateGridEffectiveWidth(grid, rows, cols, log); // skip (no-drop mode)
@@ -312,8 +355,7 @@ public class BirtDesignBuilder {
 
 
     /**
-     * Covered-ячейка в Grid: НЕ ставим drop, просто делаем "пустой".
-     * Это наиболее совместимо с BIRT Designer.
+     * Covered-ячейка в Grid: fallback, если нет master-ячейки.
      */
     private static void markCoveredEmpty(CellHandle cell, int r, int c, DebugSink log) throws SemanticException {
         // 1) убрать контент
@@ -346,6 +388,38 @@ public class BirtDesignBuilder {
         cell.clearProperty(StyleHandle.BORDER_RIGHT_WIDTH_PROP);
 
         log.i("covered cell cleared r=" + r + " c=" + c + " (props cleared)");
+    }
+
+    /**
+     * Covered-ячейка в Grid: устанавливаем drop на master-ячейку.
+     * Это делает дизайн устойчивым при открытии в BIRT Designer.
+     */
+    private static void markCoveredDrop(CellHandle cell, CellHandle master, int r, int c, DebugSink log) throws SemanticException {
+        clearSlot(cell.getContent());
+
+        cell.clearProperty(CellHandle.COL_SPAN_PROP);
+        cell.clearProperty(CellHandle.ROW_SPAN_PROP);
+        cell.setProperty(CellHandle.DROP_PROP, master);
+
+        cell.clearProperty(StyleHandle.BACKGROUND_COLOR_PROP);
+        cell.clearProperty(StyleHandle.TEXT_ALIGN_PROP);
+
+        cell.clearProperty(StyleHandle.BORDER_TOP_COLOR_PROP);
+        cell.clearProperty(StyleHandle.BORDER_BOTTOM_COLOR_PROP);
+        cell.clearProperty(StyleHandle.BORDER_LEFT_COLOR_PROP);
+        cell.clearProperty(StyleHandle.BORDER_RIGHT_COLOR_PROP);
+
+        cell.clearProperty(StyleHandle.BORDER_TOP_STYLE_PROP);
+        cell.clearProperty(StyleHandle.BORDER_BOTTOM_STYLE_PROP);
+        cell.clearProperty(StyleHandle.BORDER_LEFT_STYLE_PROP);
+        cell.clearProperty(StyleHandle.BORDER_RIGHT_STYLE_PROP);
+
+        cell.clearProperty(StyleHandle.BORDER_TOP_WIDTH_PROP);
+        cell.clearProperty(StyleHandle.BORDER_BOTTOM_WIDTH_PROP);
+        cell.clearProperty(StyleHandle.BORDER_LEFT_WIDTH_PROP);
+        cell.clearProperty(StyleHandle.BORDER_RIGHT_WIDTH_PROP);
+
+        log.i("covered cell drop r=" + r + " c=" + c + " -> master id=" + master.getID());
     }
 
 
