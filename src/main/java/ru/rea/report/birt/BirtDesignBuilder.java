@@ -24,7 +24,6 @@ public class BirtDesignBuilder {
     private final IDesignEngine designEngine;
     private final BirtExpressionMapper exprMapper;
 
-    // чтобы при ошибке не терять файл
     private static final boolean KEEP_DEBUG_ARTIFACTS = true;
 
     public void build(TemplateDocumentIR ir, TagRegistry tags, OutputStream out) {
@@ -45,28 +44,24 @@ public class BirtDesignBuilder {
 
             ReportDesignHandle report = session.createDesign();
 
-            // базовые свойства как в нормальных дизайнерских шаблонах
             report.setProperty("language", "javascript");
             report.setProperty("locale", ULocale.getDefault().toString());
-            report.setProperty("units", "in");
+            report.setProperty("units", "mm");
             report.setProperty("layoutPreference", "auto layout");
             report.setProperty("imageDPI", "96");
 
             ensureMasterPage(report, log);
             declareParams(report, tags, log);
 
-            // --- ВАЖНО: внешний MASTER_GRID 1x1, как в рабочем шаблоне ---
+            // --- MASTER_GRID 1x1 как в рабочем шаблоне ---
             GridHandle masterGrid = report.getElementFactory().newGridItem("MASTER_GRID", 1, 1);
-            masterGrid.setProperty(GridHandle.WIDTH_PROP, "100%");
-
-            // ширина колонки внешнего грида (как в рабочем — широкая)
+            masterGrid.setProperty("width", "500mm");
             ColumnHandle mgCol = (ColumnHandle) masterGrid.getColumns().get(0);
-            mgCol.setProperty(ColumnHandle.WIDTH_PROP, "14.572916666666666in");
+            mgCol.setProperty("width", "500mm");
 
-            // куда складываем весь контент
             RowHandle mgRow = (RowHandle) masterGrid.getRows().get(0);
             CellHandle mgCell = (CellHandle) mgRow.getCells().get(0);
-            // -------------------------------------------------------------
+            // ---------------------------------------------
 
             int blocks = (ir == null || ir.getBlocks() == null) ? 0 : ir.getBlocks().size();
             log.i("blocks=" + blocks);
@@ -88,26 +83,30 @@ public class BirtDesignBuilder {
 
                         GridHandle grid = buildGridFromTable(report, t, log);
                         if (grid != null) mgCell.getContent().add(grid);
-                        dumpGrid(grid, debugDir.resolve("grid_dump.txt"));
 
+                        dumpGrid(grid, debugDir.resolve("grid_dump.txt"));
                     } else {
                         log.i("block#" + idx + ": unknown " + (block == null ? "null" : block.getClass().getName()));
                     }
                 }
             }
 
-            // кладём только MASTER_GRID в body
             report.getBody().add(masterGrid);
 
             tmpRpt = debugDir.resolve("generated.rptdesign");
             report.saveAs(tmpRpt.toAbsolutePath().toString());
             log.i("build:saved " + tmpRpt);
 
-
+            String xml = Files.readString(tmpRpt, StandardCharsets.UTF_8);
+            int end = xml.lastIndexOf("</report>");
+            if (end < 0) throw new IllegalStateException("No </report> in rptdesign");
+            String tail = xml.substring(end + "</report>".length()).trim();
+            if (!tail.isEmpty()) {
+                throw new IllegalStateException("Garbage after </report>: " + tail.substring(0, Math.min(tail.length(), 200)));
+            }
 
             validateXmlRowCellCounts(tmpRpt, log);
             validateXmlGridEffectiveWidth(tmpRpt, log);
-
             selfParseValidate(session, tmpRpt, log);
 
             writeDebugLog(debugDir.resolve("debug.log"), dbg);
@@ -136,7 +135,6 @@ public class BirtDesignBuilder {
         }
     }
 
-
     private void ensureMasterPage(ReportDesignHandle report, DebugSink log) throws SemanticException {
         if (report.getMasterPages().getCount() > 0) {
             log.i("masterPage: exists count=" + report.getMasterPages().getCount());
@@ -145,16 +143,15 @@ public class BirtDesignBuilder {
 
         log.i("masterPage: create (custom landscape 500mm x 210mm, margins=0)");
 
-        SimpleMasterPageHandle mp = report.getElementFactory().newSimpleMasterPage("Standard");
+        SimpleMasterPageHandle mp = report.getElementFactory().newSimpleMasterPage("Simple MasterPage");
 
-        // максимально похоже на "рабочий" шаблон
         mp.setProperty("type", "custom");
         mp.setProperty("orientation", "landscape");
 
-        mp.setProperty("topMargin", "0cm");
-        mp.setProperty("leftMargin", "0cm");
-        mp.setProperty("bottomMargin", "0cm");
-        mp.setProperty("rightMargin", "0in");
+        mp.setProperty("topMargin", "0mm");
+        mp.setProperty("leftMargin", "0mm");
+        mp.setProperty("bottomMargin", "0mm");
+        mp.setProperty("rightMargin", "0mm");
 
         mp.setProperty("height", "210mm");
         mp.setProperty("width", "500mm");
@@ -162,16 +159,11 @@ public class BirtDesignBuilder {
         mp.setProperty("showHeaderOnFirst", "false");
         mp.setProperty("showFooterOnLast", "false");
 
-        mp.setProperty("headerHeight", "0in");
-        mp.setProperty("footerHeight", "0in");
-
-        // footer как в большинстве стандартных дизайнов (не обязателен, но безопасно)
-        TextItemHandle footer = report.getElementFactory().newTextItem(null);
-        mp.getPageFooter().add(footer);
+        mp.setProperty("headerHeight", "0mm");
+        mp.setProperty("footerHeight", "0mm");
 
         report.getMasterPages().add(mp);
     }
-
 
     private void declareParams(ReportDesignHandle report, TagRegistry tags, DebugSink log) throws SemanticException {
         if (tags == null || tags.isEmpty()) {
@@ -200,17 +192,11 @@ public class BirtDesignBuilder {
         String jsExpr = exprMapper.toHtmlValueExpr(srcText);
 
         TextDataHandle td = report.getElementFactory().newTextData(null);
-
-        // максимально совместимо для Designer: PLAIN
         td.setProperty(TextDataHandle.CONTENT_TYPE_PROP, DesignChoiceConstants.TEXT_DATA_CONTENT_TYPE_PLAIN);
-
-        // valueExpr задаём строкой, без Expression-объекта
         td.setProperty(TextDataHandle.VALUE_EXPR_PROP, jsExpr);
 
         return td;
     }
-
-
 
     private GridHandle buildGridFromTable(ReportDesignHandle report, TableIR table, DebugSink log) throws SemanticException {
         if (table == null || table.getRows() == null || table.getRows().isEmpty()) {
@@ -228,23 +214,18 @@ public class BirtDesignBuilder {
         validateNormalizedMatrixOrThrow(m, rows, cols, log);
 
         GridHandle grid = report.getElementFactory().newGridItem(null, cols, rows);
-
-        // --- КРИТИЧНО ДЛЯ BIRT DESIGNER: фиксируем ширины колонок ---
         grid.setProperty(GridHandle.WIDTH_PROP, "100%");
 
-        // Минимальный безопасный вариант: одинаковая ширина в px.
-        // Можно подобрать другое значение, главное — чтобы НЕ было пустых <column/>.
-        final int defaultColPx = 40; // 35-60 обычно нормально
+        // колонки фиксируем (как у вас), но можно позже сделать по ODS-ширинам
+        final String defaultColW = "16mm";
         for (int c = 0; c < cols; c++) {
             ColumnHandle ch = (ColumnHandle) grid.getColumns().get(c);
-            ch.setProperty(ColumnHandle.WIDTH_PROP, defaultColPx + "px");
+            ch.setProperty(ColumnHandle.WIDTH_PROP, defaultColW);
         }
-        log.i("grid:columns width fixed: cols=" + cols + " each=" + defaultColPx + "px");
-        // -----------------------------------------------------------
+        log.i("grid:columns width fixed: cols=" + cols + " each=" + defaultColW);
 
         int mastersWithSpan = 0;
         int coveredCleared = 0;
-        int coveredDropped = 0;
 
         int[][] masterRow = new int[rows][cols];
         int[][] masterCol = new int[rows][cols];
@@ -253,6 +234,7 @@ public class BirtDesignBuilder {
             Arrays.fill(masterCol[r], -1);
         }
 
+        // строим матрицу master-координат
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
                 CellIR cell = m[r][c];
@@ -279,9 +261,14 @@ public class BirtDesignBuilder {
                 log.w("grid:WARN row=" + r + " birtCells=" + birtCells + " expectedCols=" + cols);
             }
 
+            // 1) сначала “зарегистрируем” handles строки
             for (int c = 0; c < cols; c++) {
-                CellHandle ghCell = (CellHandle) gridRow.getCells().get(c);
-                cellHandles[r][c] = ghCell;
+                cellHandles[r][c] = (CellHandle) gridRow.getCells().get(c);
+            }
+
+            // 2) затем заполним
+            for (int c = 0; c < cols; c++) {
+                CellHandle ghCell = cellHandles[r][c];
                 CellIR cell = m[r][c];
 
                 if (cell == null) {
@@ -289,22 +276,18 @@ public class BirtDesignBuilder {
                     continue;
                 }
 
+                // --- КЛЮЧЕВО: covered -> DROP на master ---
                 if (cell.isCovered()) {
                     int mr = masterRow[r][c];
                     int mc = masterCol[r][c];
+
                     if (mr >= 0 && mc >= 0) {
-                        CellHandle master = cellHandles[mr][mc];
-                        if (master != null) {
-                            markCoveredDrop(ghCell, master, r, c, log);
-                            coveredDropped++;
-                        } else {
-                            markCoveredEmpty(ghCell, r, c, log);
-                            coveredCleared++;
-                        }
+                        markCoveredDrop(ghCell, r, c, log);
                     } else {
                         markCoveredEmpty(ghCell, r, c, log);
-                        coveredCleared++;
                     }
+
+                    coveredCleared++;
                     continue;
                 }
 
@@ -341,34 +324,22 @@ public class BirtDesignBuilder {
             }
         }
 
-        log.i("grid:stats mastersWithSpan=" + mastersWithSpan
-                + " coveredDropped=" + coveredDropped
-                + " coveredCleared=" + coveredCleared);
+        log.i("grid:stats mastersWithSpan=" + mastersWithSpan + " coveredCleared=" + coveredCleared);
 
         validateGridStructure(grid);
-        validateGridEffectiveWidth(grid, rows, cols, log); // skip (no-drop mode)
+        validateGridEffectiveWidth(grid, rows, cols, log);
 
         return grid;
     }
 
-
-
-
-    /**
-     * Covered-ячейка в Grid: fallback, если нет master-ячейки.
-     */
     private static void markCoveredEmpty(CellHandle cell, int r, int c, DebugSink log) throws SemanticException {
-        // 1) убрать контент
         clearSlot(cell.getContent());
 
-        // 2) удалить свойства, чтобы в XML это было <cell id="..."/> как в рабочем шаблоне
-        //    ВАЖНО: не setColumnSpan(1), а именно clearProperty
         cell.clearProperty(CellHandle.COL_SPAN_PROP);
         cell.clearProperty(CellHandle.ROW_SPAN_PROP);
         cell.clearProperty(CellHandle.DROP_PROP);
 
-        // 3) если ты где-то проставлял стили на ячейку — тоже удалить
-        //    (чтобы Designer не пытался интерпретировать covered-ячейку как “настоящую”)
+        // минимальная “чистка”, чтобы Designer не пытался рисовать конфликтные стили
         cell.clearProperty(StyleHandle.BACKGROUND_COLOR_PROP);
         cell.clearProperty(StyleHandle.TEXT_ALIGN_PROP);
 
@@ -387,20 +358,20 @@ public class BirtDesignBuilder {
         cell.clearProperty(StyleHandle.BORDER_LEFT_WIDTH_PROP);
         cell.clearProperty(StyleHandle.BORDER_RIGHT_WIDTH_PROP);
 
-        log.i("covered cell cleared r=" + r + " c=" + c + " (props cleared)");
+        log.i("covered cell cleared (no master) r=" + r + " c=" + c);
     }
 
-    /**
-     * Covered-ячейка в Grid: устанавливаем drop на master-ячейку.
-     * Это делает дизайн устойчивым при открытии в BIRT Designer.
-     */
-    private static void markCoveredDrop(CellHandle cell, CellHandle master, int r, int c, DebugSink log) throws SemanticException {
+    private static void markCoveredDrop(CellHandle cell, int r, int c, DebugSink log) throws SemanticException {
         clearSlot(cell.getContent());
 
         cell.clearProperty(CellHandle.COL_SPAN_PROP);
         cell.clearProperty(CellHandle.ROW_SPAN_PROP);
-        cell.setProperty(CellHandle.DROP_PROP, String.valueOf(master.getID()));
 
+        // ВАЖНО: drop должен быть строкой id master
+        cell.setProperty(CellHandle.DROP_PROP, "all");
+
+
+        // чистим визуальные стили у covered (они “живут” на мастере)
         cell.clearProperty(StyleHandle.BACKGROUND_COLOR_PROP);
         cell.clearProperty(StyleHandle.TEXT_ALIGN_PROP);
 
@@ -419,11 +390,8 @@ public class BirtDesignBuilder {
         cell.clearProperty(StyleHandle.BORDER_LEFT_WIDTH_PROP);
         cell.clearProperty(StyleHandle.BORDER_RIGHT_WIDTH_PROP);
 
-        log.i("covered cell drop r=" + r + " c=" + c + " -> master id=" + master.getID());
+        log.i("covered cell drop r=" + r + " c=" + c );
     }
-
-
-
 
     private static void validateGridStructure(GridHandle grid) throws SemanticException {
         int cols = grid.getColumns().getCount();
@@ -435,7 +403,6 @@ public class BirtDesignBuilder {
         for (int r = 0; r < rows; r++) {
             RowHandle row = (RowHandle) grid.getRows().get(r);
             int cellCount = row.getCells().getCount();
-
             if (cellCount != cols) {
                 problems++;
                 System.out.println("[TPLGEN][BIRT] grid:STRUCT PROBLEM row=" + r + " cellCount=" + cellCount + " expected=" + cols);
@@ -445,7 +412,6 @@ public class BirtDesignBuilder {
 
         System.out.println("[TPLGEN][BIRT] grid:validateStructure done problems=" + problems);
     }
-
 
     private void selfParseValidate(SessionHandle session, Path rpt, DebugSink log) {
         try {
@@ -474,7 +440,6 @@ public class BirtDesignBuilder {
     private DesignElementHandle buildText(ReportDesignHandle report, String srcText, StyleIR style, DebugSink log) throws SemanticException {
         srcText = (srcText == null) ? "" : srcText;
 
-        // Если нет параметров — простой TextItem, PLAIN
         if (!exprMapper.containsTagsOrParams(srcText)) {
             TextItemHandle t = report.getElementFactory().newTextItem(null);
             t.setContentType(DesignChoiceConstants.TEXT_CONTENT_TYPE_PLAIN);
@@ -483,7 +448,6 @@ public class BirtDesignBuilder {
             return t;
         }
 
-        // Если есть параметры — TextData, PLAIN + valueExpr строкой
         String jsExpr = exprMapper.toHtmlValueExpr(srcText);
 
         TextDataHandle td = report.getElementFactory().newTextData(null);
@@ -496,9 +460,6 @@ public class BirtDesignBuilder {
         return td;
     }
 
-
-    // -------------------- IR/Matrix геометрия (самое важное) --------------------
-
     private static void validateIrTableGeometryOrThrow(TableIR t, DebugSink log) {
         if (t == null || t.getRows() == null) return;
         int rows = t.getRows().size();
@@ -507,7 +468,6 @@ public class BirtDesignBuilder {
     }
 
     private static void validateNormalizedMatrixOrThrow(CellIR[][] m, int rows, int cols, DebugSink log) {
-        // occupancy: -1 пусто, иначе id мастера
         int[][] occ = new int[rows][cols];
         for (int r = 0; r < rows; r++) Arrays.fill(occ[r], -1);
 
@@ -516,7 +476,6 @@ public class BirtDesignBuilder {
         int badCovered = 0;
         int outOfBounds = 0;
 
-        // 1) раскладываем master-ячейки
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
                 CellIR cell = m[r][c];
@@ -540,8 +499,6 @@ public class BirtDesignBuilder {
             }
         }
 
-        // 2) проверяем covered: если ячейка covered, то она должна быть занята кем-то (кроме самой позиции мастера),
-        // а если НЕ covered — позиция должна быть мастером (то есть occ[r][c] должен быть валидным, но это не всегда строго).
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
                 CellIR cell = m[r][c];
@@ -550,13 +507,10 @@ public class BirtDesignBuilder {
                 boolean covered = cell.isCovered();
                 boolean occupied = (occ[r][c] != -1);
 
-                if (covered && !occupied) {
-                    badCovered++;
-                }
+                if (covered && !occupied) badCovered++;
             }
         }
 
-        // карта
         StringBuilder map = new StringBuilder(rows * cols * 4);
         for (int r = 0; r < rows; r++) {
             map.append(String.format("R%03d: ", r));
@@ -576,8 +530,6 @@ public class BirtDesignBuilder {
 
         log.i("matrix:geometry ok");
     }
-
-    // -------------------- XML проверки --------------------
 
     private void validateXmlRowCellCounts(Path rpt, DebugSink log) {
         try {
@@ -606,7 +558,6 @@ public class BirtDesignBuilder {
                         + " name=" + (gridName == null || gridName.isBlank() ? "-" : gridName)
                         + " cols=" + cols);
 
-                // rows считаем только прямые (не из вложенных grid)
                 org.w3c.dom.NodeList children = gridEl.getChildNodes();
                 for (int i = 0; i < children.getLength(); i++) {
                     org.w3c.dom.Node n = children.item(i);
@@ -623,7 +574,7 @@ public class BirtDesignBuilder {
                         log.e("xmlRowCellCount: PROBLEM gridId=" + gridId + " rowId=" + rowId
                                 + " cells=" + cellCount + " expected=" + cols);
                         log.e("xmlRowCellCount: rowSnippet=" + shrinkSpaces(serializeElement(el), 800));
-                        return; // достаточно первого расхождения
+                        return;
                     }
                 }
             }
@@ -633,9 +584,6 @@ public class BirtDesignBuilder {
         }
     }
 
-    /**
-     * Считает только прямых детей-элементов заданного типа (без вложенных уровней).
-     */
     private static int countDirectChildElements(org.w3c.dom.Element parent, String ns, String localName) {
         int cnt = 0;
         org.w3c.dom.NodeList children = parent.getChildNodes();
@@ -649,9 +597,6 @@ public class BirtDesignBuilder {
         return cnt;
     }
 
-    /**
-     * Для логов: сериализация элемента (одной строки), чтобы видеть проблемный row/cell без ручного вырезания.
-     */
     private static String serializeElement(org.w3c.dom.Element el) {
         try {
             var tf = javax.xml.transform.TransformerFactory.newInstance();
@@ -667,23 +612,9 @@ public class BirtDesignBuilder {
         }
     }
 
-
-
     private void validateXmlGridEffectiveWidth(Path rpt, DebugSink log) {
-        // Аналогично validateGridEffectiveWidth: без drop суммарный effective по colSpan из XML будет > cols
-        // (covered ячейки присутствуют как отдельные <cell>), поэтому проверка некорректна.
-        log.i("xmlValidateEff: skipped (no-drop mode)");
-    }
-
-
-    // -------------------- style / utils --------------------
-
-    private static String escapeHtml(String s) {
-        if (s == null) return "";
-        return s.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;");
+        // после DROP эта проверка становится осмысленной, но сейчас оставим выключенной
+        log.i("xmlValidateEff: skipped");
     }
 
     private static void clearSlot(SlotHandle slot) throws SemanticException {
@@ -727,73 +658,15 @@ public class BirtDesignBuilder {
         }
     }
 
-    private static int countMatches(String s, String needle) {
-        int cnt = 0;
-        int p = 0;
-        while (true) {
-            int i = s.indexOf(needle, p);
-            if (i < 0) return cnt;
-            cnt++;
-            p = i + needle.length();
-        }
-    }
-
-    private static String extractAttr(String tagOpen, String attr) {
-        String key = attr + "=\"";
-        int i = tagOpen.indexOf(key);
-        if (i < 0) return null;
-        int j = tagOpen.indexOf("\"", i + key.length());
-        if (j < 0) return null;
-        return tagOpen.substring(i + key.length(), j);
-    }
-
-    private static String extractPropertyValue(String cellBody, String propName) {
-        String key = "<property name=\"" + propName + "\">";
-        int i = cellBody.indexOf(key);
-        if (i < 0) return null;
-        int j = cellBody.indexOf("</property>", i);
-        if (j < 0) return null;
-        return cellBody.substring(i + key.length(), j).trim();
-    }
-
-    private static Integer extractPropertyInt(String cellBody, String propName) {
-        String v = extractPropertyValue(cellBody, propName);
-        if (v == null || v.isBlank()) return null;
-        try { return Integer.parseInt(v.trim()); } catch (Exception e) { return null; }
-    }
-
-    private static String safe(String s) { return s == null ? "" : s; }
-    private static String safeStr(String s) { return s == null ? "" : s; }
-
-    private static int intProp(DesignElementHandle h, String prop, int def) {
-        try {
-            Object v = h.getProperty(prop);
-            if (v instanceof Integer i) return i;
-            if (v instanceof String s && !s.isBlank()) return Integer.parseInt(s);
-            return def;
-        } catch (Exception e) {
-            return def;
-        }
-    }
-
     private void validateGridEffectiveWidth(GridHandle grid, int rows, int cols, DebugSink log) {
-        // В режиме без DROP это НЕ ошибка:
-        // сумма colSpan по строке будет больше cols, потому что covered-ячейки физически есть в строке (cs=1),
-        // а master-ячейка ещё добавляет colSpan>1.
-        // Поэтому этот валидатор даёт ложные срабатывания и должен быть выключен.
-        log.i("grid:validateEffectiveWidth skipped (no-drop mode)");
+        // после DROP проблем с “effective width” в Designer обычно нет
+        log.i("grid:validateEffectiveWidth skipped");
     }
-
 
     private static String shrinkSpaces(String s, int max) {
         if (s == null) return "";
         String t = s.replace("\r", "").replace("\n", " ").replaceAll("\\s+", " ").trim();
         return t.length() <= max ? t : t.substring(0, max) + "...";
-    }
-
-    private static String shrink(String s, int max) {
-        if (s == null) return "";
-        return s.length() <= max ? s : s.substring(0, max) + "...";
     }
 
     private static void writeDebugLog(Path file, StringBuilder dbg) throws IOException {
@@ -811,6 +684,8 @@ public class BirtDesignBuilder {
         }
     }
 
+    private static String safe(String s) { return s == null ? "" : s; }
+
     private static final class DebugSink {
         private final StringBuilder b;
         DebugSink(StringBuilder b) { this.b = b; }
@@ -823,8 +698,11 @@ public class BirtDesignBuilder {
             b.append("[").append(lvl).append("] ").append(s).append("\n");
         }
     }
+
     private static void dumpGrid(GridHandle grid, Path file) {
         try {
+            if (grid == null) return;
+
             StringBuilder sb = new StringBuilder(200_000);
 
             int cols = grid.getColumns().getCount();
@@ -833,67 +711,30 @@ public class BirtDesignBuilder {
             sb.append("id=").append(grid.getID()).append(" name=").append(grid.getName()).append("\n");
             sb.append("rows=").append(rows).append(" cols=").append(cols).append("\n\n");
 
-            sb.append("COLUMNS:\n");
-            for (int c = 0; c < cols; c++) {
-                ColumnHandle col = (ColumnHandle) grid.getColumns().get(c);
-                Object w = col.getProperty(ColumnHandle.WIDTH_PROP);
-                sb.append("  c=").append(c).append(" colId=").append(col.getID()).append(" width=").append(w).append("\n");
-            }
-            sb.append("\nROWS/CELLS:\n");
-
             for (int r = 0; r < rows; r++) {
                 RowHandle row = (RowHandle) grid.getRows().get(r);
-                sb.append("ROW r=").append(r).append(" rowId=").append(row.getID())
-                        .append(" height=").append(row.getProperty(RowHandle.HEIGHT_PROP)).append("\n");
+                sb.append("ROW r=").append(r).append(" rowId=").append(row.getID()).append("\n");
 
                 for (int c = 0; c < cols; c++) {
                     CellHandle cell = (CellHandle) row.getCells().get(c);
-
                     Integer cs = (Integer) cell.getProperty(CellHandle.COL_SPAN_PROP);
                     Integer rs = (Integer) cell.getProperty(CellHandle.ROW_SPAN_PROP);
                     Object drop = cell.getProperty(CellHandle.DROP_PROP);
-                    Object ta = cell.getProperty(StyleHandle.TEXT_ALIGN_PROP);
-                    Object bg = cell.getProperty(StyleHandle.BACKGROUND_COLOR_PROP);
 
                     sb.append("  CELL r=").append(r).append(" c=").append(c)
                             .append(" id=").append(cell.getID())
                             .append(" colSpan=").append(cs)
                             .append(" rowSpan=").append(rs)
                             .append(" drop=").append(drop)
-                            .append(" textAlign=").append(ta)
-                            .append(" bg=").append(bg)
                             .append(" contentCount=").append(cell.getContent().getCount())
                             .append("\n");
-
-                    for (int i = 0; i < cell.getContent().getCount(); i++) {
-                        DesignElementHandle el = (DesignElementHandle) cell.getContent().get(i);
-                        sb.append("    - ").append(el.getElement()).append(" id=").append(el.getID())
-                                .append(" name=").append(el.getName()).append("\n");
-
-                        if (el instanceof TextItemHandle t) {
-                            sb.append("      TextItem contentType=").append(t.getContentType())
-                                    .append(" content=").append(shorten(t.getContent(), 120)).append("\n");
-                        } else if (el instanceof TextDataHandle td) {
-                            sb.append("      TextData contentType=").append(td.getProperty(TextDataHandle.CONTENT_TYPE_PROP))
-                                    .append(" valueExpr=").append(shorten(String.valueOf(td.getProperty(TextDataHandle.VALUE_EXPR_PROP)), 180))
-                                    .append("\n");
-                        }
-                    }
                 }
                 sb.append("\n");
             }
 
             Files.writeString(file, sb.toString(), StandardCharsets.UTF_8);
         } catch (Exception ex) {
-            // намеренно без throw — это диагностический dump
             ex.printStackTrace();
         }
     }
-
-    private static String shorten(String s, int max) {
-        if (s == null) return "null";
-        String t = s.replace("\r", "\\r").replace("\n", "\\n");
-        return t.length() <= max ? t : t.substring(0, max) + "...";
-    }
-
 }

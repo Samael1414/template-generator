@@ -34,50 +34,63 @@ public class OdsReader {
             int lastRow = -1;
             int lastCol = -1;
 
+            // 1) Сканируем видимый контент и ВАЖНО: учитываем colSpan/rowSpan мастер-ячейки
             for (int r = 0; r < scanRows; r++) {
                 OdfTableRow row = sheet.getRowByIndex(r);
                 boolean rowHasData = false;
 
                 for (int c = 0; c < scanCols; c++) {
                     OdfTableCell cell = row.getCellByIndex(c);
-                    if (isCoveredCell(cell)) continue;
+                    if (cell == null) continue;
+
+                    if (isCoveredCell(cell)) continue; // covered - это не мастер
 
                     String text = fastCellText(cell);
                     if (text != null && !text.isBlank()) {
                         rowHasData = true;
-                        lastCol = Math.max(lastCol, c);
+
+                        int cs = colSpanOf(cell);
+                        int rs = rowSpanOf(cell);
+
+                        // границы таблицы должны включать весь merge-диапазон
+                        lastCol = Math.max(lastCol, c + cs - 1);
+                        lastRow = Math.max(lastRow, r + rs - 1);
                     }
                 }
-                if (rowHasData) lastRow = r;
+                if (rowHasData) lastRow = Math.max(lastRow, r);
             }
 
             if (lastRow < 0 || lastCol < 0) {
                 throw new BadTemplateException("ODS sheet is empty (no visible content found)");
             }
 
+            // Ограничиваем тем, что реально можем обработать
+            lastRow = Math.min(lastRow, HARD_MAX_ROWS - 1);
+            lastCol = Math.min(lastCol, HARD_MAX_COLS - 1);
+
             int rows = lastRow + 1;
             int cols = lastCol + 1;
 
             TableIR tableIR = new TableIR();
 
+            // 2) Читаем матрицу целиком до вычисленных границ
             for (int r = 0; r < rows; r++) {
                 OdfTableRow row = sheet.getRowByIndex(r);
                 RowIR rowIR = new RowIR();
 
                 for (int c = 0; c < cols; c++) {
                     OdfTableCell cell = row.getCellByIndex(c);
-
                     boolean covered = isCoveredCell(cell);
 
                     CellIR cellIR = new CellIR(fastCellText(cell))
                             .setCovered(covered);
 
-                    if (!covered) {
+                    if (!covered && cell != null) {
                         int cs = colSpanOf(cell);
                         int rs = rowSpanOf(cell);
 
-                        cs = Math.min(cs, cols - c);
-                        rs = Math.min(rs, rows - r);
+                        cs = Math.min(Math.max(cs, 1), cols - c);
+                        rs = Math.min(Math.max(rs, 1), rows - r);
 
                         if (cs > 1) cellIR.setColSpan(cs);
                         if (rs > 1) cellIR.setRowSpan(rs);
@@ -136,6 +149,14 @@ public class OdsReader {
     private static boolean isCoveredCell(OdfTableCell cell) {
         if (cell == null) return false;
         Element el = (Element) cell.getOdfElement();
-        return "covered-table-cell".equals(el.getLocalName());
+        if (el == null) return false;
+
+        String ln = el.getLocalName();
+        if ("covered-table-cell".equals(ln)) return true;
+
+        // fallback: иногда попадается qName
+        String tag = el.getTagName(); // например "table:covered-table-cell"
+        return tag != null && tag.endsWith("covered-table-cell");
     }
+
 }
