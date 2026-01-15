@@ -261,7 +261,7 @@ public class BirtDesignBuilder {
                 log.w("grid:WARN row=" + r + " birtCells=" + birtCells + " expectedCols=" + cols);
             }
 
-            // 1) сначала “зарегистрируем” handles строки
+            // 1) сначала "зарегистрируем" handles строки
             for (int c = 0; c < cols; c++) {
                 cellHandles[r][c] = (CellHandle) gridRow.getCells().get(c);
             }
@@ -359,9 +359,15 @@ public class BirtDesignBuilder {
         cell.clearProperty(CellHandle.ROW_SPAN_PROP);
         cell.clearProperty(CellHandle.DROP_PROP);
 
-        // минимальная “чистка”, чтобы Designer не пытался рисовать конфликтные стили
+        // полная "чистка" стилей, чтобы Designer не пытался рисовать конфликтные стили
         cell.clearProperty(StyleHandle.BACKGROUND_COLOR_PROP);
         cell.clearProperty(StyleHandle.TEXT_ALIGN_PROP);
+        cell.clearProperty(StyleHandle.COLOR_PROP);
+        cell.clearProperty(StyleHandle.FONT_FAMILY_PROP);
+        cell.clearProperty(StyleHandle.FONT_SIZE_PROP);
+        cell.clearProperty(StyleHandle.FONT_STYLE_PROP);
+        cell.clearProperty(StyleHandle.FONT_WEIGHT_PROP);
+        cell.clearProperty(StyleHandle.TEXT_INDENT_PROP);
 
         cell.clearProperty(StyleHandle.BORDER_TOP_COLOR_PROP);
         cell.clearProperty(StyleHandle.BORDER_BOTTOM_COLOR_PROP);
@@ -377,6 +383,16 @@ public class BirtDesignBuilder {
         cell.clearProperty(StyleHandle.BORDER_BOTTOM_WIDTH_PROP);
         cell.clearProperty(StyleHandle.BORDER_LEFT_WIDTH_PROP);
         cell.clearProperty(StyleHandle.BORDER_RIGHT_WIDTH_PROP);
+
+        cell.clearProperty(StyleHandle.MARGIN_TOP_PROP);
+        cell.clearProperty(StyleHandle.MARGIN_BOTTOM_PROP);
+        cell.clearProperty(StyleHandle.MARGIN_LEFT_PROP);
+        cell.clearProperty(StyleHandle.MARGIN_RIGHT_PROP);
+
+        cell.clearProperty(StyleHandle.PADDING_TOP_PROP);
+        cell.clearProperty(StyleHandle.PADDING_BOTTOM_PROP);
+        cell.clearProperty(StyleHandle.PADDING_LEFT_PROP);
+        cell.clearProperty(StyleHandle.PADDING_RIGHT_PROP);
 
         log.i("covered cell cleared (no master) r=" + r + " c=" + c);
     }
@@ -391,9 +407,15 @@ public class BirtDesignBuilder {
         cell.clearProperty(CellHandle.DROP_PROP);
 
 
-        // чистим визуальные стили у covered (они “живут” на мастере)
+        // полная "чистка" стилей у covered (они "живут" на мастере)
         cell.clearProperty(StyleHandle.BACKGROUND_COLOR_PROP);
         cell.clearProperty(StyleHandle.TEXT_ALIGN_PROP);
+        cell.clearProperty(StyleHandle.COLOR_PROP);
+        cell.clearProperty(StyleHandle.FONT_FAMILY_PROP);
+        cell.clearProperty(StyleHandle.FONT_SIZE_PROP);
+        cell.clearProperty(StyleHandle.FONT_STYLE_PROP);
+        cell.clearProperty(StyleHandle.FONT_WEIGHT_PROP);
+        cell.clearProperty(StyleHandle.TEXT_INDENT_PROP);
 
         cell.clearProperty(StyleHandle.BORDER_TOP_COLOR_PROP);
         cell.clearProperty(StyleHandle.BORDER_BOTTOM_COLOR_PROP);
@@ -409,6 +431,16 @@ public class BirtDesignBuilder {
         cell.clearProperty(StyleHandle.BORDER_BOTTOM_WIDTH_PROP);
         cell.clearProperty(StyleHandle.BORDER_LEFT_WIDTH_PROP);
         cell.clearProperty(StyleHandle.BORDER_RIGHT_WIDTH_PROP);
+
+        cell.clearProperty(StyleHandle.MARGIN_TOP_PROP);
+        cell.clearProperty(StyleHandle.MARGIN_BOTTOM_PROP);
+        cell.clearProperty(StyleHandle.MARGIN_LEFT_PROP);
+        cell.clearProperty(StyleHandle.MARGIN_RIGHT_PROP);
+
+        cell.clearProperty(StyleHandle.PADDING_TOP_PROP);
+        cell.clearProperty(StyleHandle.PADDING_BOTTOM_PROP);
+        cell.clearProperty(StyleHandle.PADDING_LEFT_PROP);
+        cell.clearProperty(StyleHandle.PADDING_RIGHT_PROP);
 
         log.i("covered cell cleared r=" + r + " c=" + c + " drop=none");
     }
@@ -679,7 +711,7 @@ public class BirtDesignBuilder {
     }
 
     private void validateGridEffectiveWidth(GridHandle grid, int rows, int cols, DebugSink log) {
-        // после DROP проблем с “effective width” в Designer обычно нет
+        // после DROP проблем с "effective width" в Designer обычно нет
         log.i("grid:validateEffectiveWidth skipped");
     }
 

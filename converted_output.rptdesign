@@ -1,0 +1,1088 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<report xmlns="http://www.eclipse.org/birt/2005/design" version="3.2.27" id="1">
+    <parameters>
+        <scalar-parameter name="year" id="4">
+            <text-property name="promptText">year</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="summ_established_loan_amount" id="5">
+            <text-property name="promptText">summ_established_loan_amount</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="summ_established_loan_amount_35" id="6">
+            <text-property name="promptText">summ_established_loan_amount_35</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="summ_employees" id="7">
+            <text-property name="promptText">summ_employees</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="summ_employees_35" id="8">
+            <text-property name="promptText">summ_employees_35</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="is_compensated" id="9">
+            <text-property name="promptText">is_compensated</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="is_compensated_35" id="10">
+            <text-property name="promptText">is_compensated_35</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="summ_employees_commission_types_1" id="11">
+            <text-property name="promptText">summ_employees_commission_types_1</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="summ_org_employees_code" id="12">
+            <text-property name="promptText">summ_org_employees_code</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="summ_org_employees_code_35" id="13">
+            <text-property name="promptText">summ_org_employees_code_35</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="summ_org_employees_code_perc" id="14">
+            <text-property name="promptText">summ_org_employees_code_perc</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="summ_org_employees_code_perc_35" id="15">
+            <text-property name="promptText">summ_org_employees_code_perc_35</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="established_loan_amount" id="16">
+            <text-property name="promptText">established_loan_amount</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="established_loan_amount_35" id="17">
+            <text-property name="promptText">established_loan_amount_35</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="summ_employees_php_mortgage_approvals" id="18">
+            <text-property name="promptText">summ_employees_php_mortgage_approvals</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="summ_employees_php_mortgage_approvals_35" id="19">
+            <text-property name="promptText">summ_employees_php_mortgage_approvals_35</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="summ_employees_percent_amount" id="20">
+            <text-property name="promptText">summ_employees_percent_amount</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="summ_employees_percent_amount_35" id="21">
+            <text-property name="promptText">summ_employees_percent_amount_35</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="tag_1" id="22">
+            <text-property name="promptText">tag_1</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="tag_1_35" id="23">
+            <text-property name="promptText">tag_1_35</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="tag_2" id="24">
+            <text-property name="promptText">tag_2</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+        <scalar-parameter name="tag_2_35" id="25">
+            <text-property name="promptText">tag_2_35</text-property>
+            <property name="dataType">string</property>
+        </scalar-parameter>
+    </parameters>
+    <styles>
+        <style name="TimesNewRoman12" id="2">
+            <property name="fontFamily">"Times New Roman"</property>
+            <property name="fontSize">12pt</property>
+        </style>
+    </styles>
+    <page-setup>
+        <simple-master-page name="Standard" id="3">
+            <property name="type">custom</property>
+            <property name="orientation">landscape</property>
+            <property name="topMargin">0cm</property>
+            <property name="leftMargin">0cm</property>
+            <property name="bottomMargin">0cm</property>
+            <property name="rightMargin">0in</property>
+            <property name="height">210mm</property>
+            <property name="width">500mm</property>
+            <property name="showHeaderOnFirst">false</property>
+            <property name="showFooterOnLast">false</property>
+            <property name="headerHeight">0in</property>
+            <property name="footerHeight">0in</property>
+        </simple-master-page>
+    </page-setup>
+    <body>
+        <grid id="26">
+            <column id="27"/>
+            <column id="28"/>
+            <column id="29"/>
+            <column id="30"/>
+            <column id="31"/>
+            <column id="32"/>
+            <column id="33"/>
+            <column id="34"/>
+            <column id="35"/>
+            <column id="36"/>
+            <column id="37"/>
+            <column id="38"/>
+            <column id="39"/>
+            <column id="40"/>
+            <column id="41"/>
+            <column id="42"/>
+            <column id="43"/>
+            <row id="44">
+                <cell id="45"/>
+                <cell id="46"/>
+                <cell id="47"/>
+                <cell id="48"/>
+                <cell id="49"/>
+                <cell id="50"/>
+                <cell id="51"/>
+                <cell id="52"/>
+                <cell id="53"/>
+                <cell id="54"/>
+                <cell id="55"/>
+                <cell id="56"/>
+                <cell id="57"/>
+                <cell id="58"/>
+                <cell id="59"/>
+                <cell id="60"/>
+                <cell id="61"/>
+            </row>
+            <row id="62">
+                <cell id="63">
+                    <property name="colSpan">3</property>
+                    <text-data id="64">
+                        <expression name="valueExpr">"IV. Расходы социального характера"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="65"/>
+                <cell id="66"/>
+                <cell id="67">
+                    <property name="colSpan">8</property>
+                    <text-data id="68">
+                        <expression name="valueExpr">params["year"].value + " год"</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="69"/>
+                <cell id="70"/>
+                <cell id="71"/>
+                <cell id="72"/>
+                <cell id="73"/>
+                <cell id="74"/>
+                <cell id="75"/>
+                <cell id="76">
+                    <property name="colSpan">6</property>
+                    <text-data id="77">
+                        <expression name="valueExpr">params["year"].value + " год"</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="78"/>
+                <cell id="79"/>
+                <cell id="80"/>
+                <cell id="81"/>
+                <cell id="82"/>
+            </row>
+            <row id="83">
+                <cell id="84">
+                    <text-data id="85">
+                        <expression name="valueExpr">"Показатель"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="86">
+                    <property name="colSpan">2</property>
+                </cell>
+                <cell id="87"/>
+                <cell id="88">
+                    <property name="colSpan">2</property>
+                    <text-data id="89">
+                        <expression name="valueExpr">"1 квартал"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="90"/>
+                <cell id="91">
+                    <property name="colSpan">2</property>
+                    <text-data id="92">
+                        <expression name="valueExpr">"2 квартал"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="93"/>
+                <cell id="94">
+                    <property name="colSpan">2</property>
+                    <text-data id="95">
+                        <expression name="valueExpr">"3 квартал"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="96"/>
+                <cell id="97">
+                    <property name="colSpan">2</property>
+                    <text-data id="98">
+                        <expression name="valueExpr">"4 квартал"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="99"/>
+                <cell id="100">
+                    <property name="colSpan">2</property>
+                    <text-data id="101">
+                        <expression name="valueExpr">"Нарастающий итог полугодие"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="102"/>
+                <cell id="103">
+                    <property name="colSpan">2</property>
+                    <text-data id="104">
+                        <expression name="valueExpr">"Нарастающий итог 3 квартала"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="105"/>
+                <cell id="106">
+                    <property name="colSpan">2</property>
+                    <text-data id="107">
+                        <expression name="valueExpr">"Нарастающий итог год"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="108"/>
+            </row>
+            <row id="109">
+                <cell id="110"/>
+                <cell id="111">
+                    <text-data id="112">
+                        <expression name="valueExpr">"план"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="113">
+                    <text-data id="114">
+                        <expression name="valueExpr">"факт"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="115">
+                    <text-data id="116">
+                        <expression name="valueExpr">"план"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="117">
+                    <text-data id="118">
+                        <expression name="valueExpr">"факт"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="119">
+                    <text-data id="120">
+                        <expression name="valueExpr">"план"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="121">
+                    <text-data id="122">
+                        <expression name="valueExpr">"факт"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="123">
+                    <text-data id="124">
+                        <expression name="valueExpr">"план"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="125">
+                    <text-data id="126">
+                        <expression name="valueExpr">"факт"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="127">
+                    <text-data id="128">
+                        <expression name="valueExpr">"план"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="129">
+                    <text-data id="130">
+                        <expression name="valueExpr">"факт"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="131">
+                    <text-data id="132">
+                        <expression name="valueExpr">"план"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="133">
+                    <text-data id="134">
+                        <expression name="valueExpr">"факт"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="135">
+                    <text-data id="136">
+                        <expression name="valueExpr">"план"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="137">
+                    <text-data id="138">
+                        <expression name="valueExpr">"факт"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="139">
+                    <text-data id="140">
+                        <expression name="valueExpr">"план"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="141">
+                    <text-data id="142">
+                        <expression name="valueExpr">"факт"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+            </row>
+            <row id="143">
+                <cell id="144">
+                    <text-data id="145">
+                        <expression name="valueExpr">"Расходы на оказание помощи в приобретении жилья (тыс. руб.)"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="146"/>
+                <cell id="147">
+                    <text-data id="148">
+                        <expression name="valueExpr">params["summ_established_loan_amount"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="149"/>
+                <cell id="150"/>
+                <cell id="151"/>
+                <cell id="152"/>
+                <cell id="153"/>
+                <cell id="154"/>
+                <cell id="155"/>
+                <cell id="156"/>
+                <cell id="157"/>
+                <cell id="158"/>
+                <cell id="159"/>
+                <cell id="160"/>
+                <cell id="161"/>
+                <cell id="162"/>
+            </row>
+            <row id="163">
+                <cell id="164">
+                    <text-data id="165">
+                        <expression name="valueExpr">"из них работникам до 35 лет, тыс. руб."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="166"/>
+                <cell id="167">
+                    <text-data id="168">
+                        <expression name="valueExpr">params["summ_established_loan_amount_35"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="169"/>
+                <cell id="170"/>
+                <cell id="171"/>
+                <cell id="172"/>
+                <cell id="173"/>
+                <cell id="174"/>
+                <cell id="175"/>
+                <cell id="176"/>
+                <cell id="177"/>
+                <cell id="178"/>
+                <cell id="179"/>
+                <cell id="180"/>
+                <cell id="181"/>
+                <cell id="182"/>
+            </row>
+            <row id="183">
+                <cell id="184">
+                    <text-data id="185">
+                        <expression name="valueExpr">"Количество работников, которым предоставляется компенсация процентов по ипотечным кредитам, получавших данный вид помощи до начала текущего календарного года, чел."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="186"/>
+                <cell id="187">
+                    <text-data id="188">
+                        <expression name="valueExpr">params["summ_employees"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="189"/>
+                <cell id="190"/>
+                <cell id="191"/>
+                <cell id="192"/>
+                <cell id="193"/>
+                <cell id="194"/>
+                <cell id="195"/>
+                <cell id="196"/>
+                <cell id="197"/>
+                <cell id="198"/>
+                <cell id="199"/>
+                <cell id="200"/>
+                <cell id="201"/>
+                <cell id="202"/>
+            </row>
+            <row id="203">
+                <cell id="204">
+                    <text-data id="205">
+                        <expression name="valueExpr">"из них до 35 лет, чел."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="206"/>
+                <cell id="207">
+                    <text-data id="208">
+                        <expression name="valueExpr">params["summ_employees_35"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="209"/>
+                <cell id="210"/>
+                <cell id="211"/>
+                <cell id="212"/>
+                <cell id="213"/>
+                <cell id="214"/>
+                <cell id="215"/>
+                <cell id="216"/>
+                <cell id="217"/>
+                <cell id="218"/>
+                <cell id="219"/>
+                <cell id="220"/>
+                <cell id="221"/>
+                <cell id="222"/>
+            </row>
+            <row id="223">
+                <cell id="224">
+                    <text-data id="225">
+                        <expression name="valueExpr">"Затраты организации на компенсацию процентов по ипотечным кредитам работникам, получавшим данный вид помощи до начала текущего календарного года, тыс. руб."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="226"/>
+                <cell id="227">
+                    <text-data id="228">
+                        <expression name="valueExpr">params["is_compensated"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="229"/>
+                <cell id="230"/>
+                <cell id="231"/>
+                <cell id="232"/>
+                <cell id="233"/>
+                <cell id="234"/>
+                <cell id="235"/>
+                <cell id="236"/>
+                <cell id="237"/>
+                <cell id="238"/>
+                <cell id="239"/>
+                <cell id="240"/>
+                <cell id="241"/>
+                <cell id="242"/>
+            </row>
+            <row id="243">
+                <cell id="244">
+                    <text-data id="245">
+                        <expression name="valueExpr">"из них работникам до 35 лет, тыс. руб."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="246"/>
+                <cell id="247">
+                    <text-data id="248">
+                        <expression name="valueExpr">params["is_compensated_35"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="249"/>
+                <cell id="250"/>
+                <cell id="251"/>
+                <cell id="252"/>
+                <cell id="253"/>
+                <cell id="254"/>
+                <cell id="255"/>
+                <cell id="256"/>
+                <cell id="257"/>
+                <cell id="258"/>
+                <cell id="259"/>
+                <cell id="260"/>
+                <cell id="261"/>
+                <cell id="262"/>
+            </row>
+            <row id="263">
+                <cell id="264">
+                    <text-data id="265">
+                        <expression name="valueExpr">"Количество работников, нуждающихся в улучшении жилищных условий, (чел)"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="266"/>
+                <cell id="267">
+                    <text-data id="268">
+                        <expression name="valueExpr">params["summ_employees_commission_types_1"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="269"/>
+                <cell id="270"/>
+                <cell id="271"/>
+                <cell id="272"/>
+                <cell id="273"/>
+                <cell id="274"/>
+                <cell id="275"/>
+                <cell id="276"/>
+                <cell id="277"/>
+                <cell id="278"/>
+                <cell id="279"/>
+                <cell id="280"/>
+                <cell id="281"/>
+                <cell id="282"/>
+            </row>
+            <row id="283">
+                <cell id="284">
+                    <text-data id="285">
+                        <expression name="valueExpr">"Количество работников, проживающих в ведомственных общежитиях организации на начало календарного года"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="286"/>
+                <cell id="287"/>
+                <cell id="288"/>
+                <cell id="289"/>
+                <cell id="290"/>
+                <cell id="291"/>
+                <cell id="292"/>
+                <cell id="293"/>
+                <cell id="294"/>
+                <cell id="295"/>
+                <cell id="296"/>
+                <cell id="297"/>
+                <cell id="298"/>
+                <cell id="299"/>
+                <cell id="300"/>
+                <cell id="301"/>
+            </row>
+            <row id="302">
+                <cell id="303">
+                    <text-data id="304">
+                        <expression name="valueExpr">"Количество работников, проживающих в ведомственном жилье на начало календарного года"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="305"/>
+                <cell id="306"/>
+                <cell id="307"/>
+                <cell id="308"/>
+                <cell id="309"/>
+                <cell id="310"/>
+                <cell id="311"/>
+                <cell id="312"/>
+                <cell id="313"/>
+                <cell id="314"/>
+                <cell id="315"/>
+                <cell id="316"/>
+                <cell id="317"/>
+                <cell id="318"/>
+                <cell id="319"/>
+                <cell id="320"/>
+            </row>
+            <row id="321">
+                <cell id="322">
+                    <text-data id="323">
+                        <expression name="valueExpr">"Количество работников, проживающих в арендованном жилье, оплачиваемом (может быть частично) организацией на начало календарного года"</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="324"/>
+                <cell id="325"/>
+                <cell id="326"/>
+                <cell id="327"/>
+                <cell id="328"/>
+                <cell id="329"/>
+                <cell id="330"/>
+                <cell id="331"/>
+                <cell id="332"/>
+                <cell id="333"/>
+                <cell id="334"/>
+                <cell id="335"/>
+                <cell id="336"/>
+                <cell id="337"/>
+                <cell id="338"/>
+                <cell id="339"/>
+            </row>
+            <row id="340">
+                <cell id="341">
+                    <text-data id="342">
+                        <expression name="valueExpr">"Затраты организации на компенсацию стоимости аренды жилья, проживания в ведомственном жилье, общежитии работникам, получавшим данный вид помощи до начала текущего календарного года, всего, тыс. руб."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="343"/>
+                <cell id="344"/>
+                <cell id="345"/>
+                <cell id="346"/>
+                <cell id="347"/>
+                <cell id="348"/>
+                <cell id="349"/>
+                <cell id="350"/>
+                <cell id="351"/>
+                <cell id="352"/>
+                <cell id="353"/>
+                <cell id="354"/>
+                <cell id="355"/>
+                <cell id="356"/>
+                <cell id="357"/>
+                <cell id="358"/>
+            </row>
+            <row id="359">
+                <cell id="360">
+                    <text-data id="361">
+                        <expression name="valueExpr">"из них работникам до 35 лет, тыс. руб."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="362"/>
+                <cell id="363"/>
+                <cell id="364"/>
+                <cell id="365"/>
+                <cell id="366"/>
+                <cell id="367"/>
+                <cell id="368"/>
+                <cell id="369"/>
+                <cell id="370"/>
+                <cell id="371"/>
+                <cell id="372"/>
+                <cell id="373"/>
+                <cell id="374"/>
+                <cell id="375"/>
+                <cell id="376"/>
+                <cell id="377"/>
+            </row>
+            <row id="378">
+                <cell id="379">
+                    <text-data id="380">
+                        <expression name="valueExpr">"Улучшили жилищные условия в текущем году, всего, чел."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="381"/>
+                <cell id="382">
+                    <text-data id="383">
+                        <expression name="valueExpr">params["summ_org_employees_code"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="384"/>
+                <cell id="385"/>
+                <cell id="386"/>
+                <cell id="387"/>
+                <cell id="388"/>
+                <cell id="389"/>
+                <cell id="390"/>
+                <cell id="391"/>
+                <cell id="392"/>
+                <cell id="393"/>
+                <cell id="394"/>
+                <cell id="395"/>
+                <cell id="396"/>
+                <cell id="397"/>
+            </row>
+            <row id="398">
+                <cell id="399">
+                    <text-data id="400">
+                        <expression name="valueExpr">"из них до 35 лет, чел."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="401"/>
+                <cell id="402">
+                    <text-data id="403">
+                        <expression name="valueExpr">params["summ_org_employees_code_35"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="404"/>
+                <cell id="405"/>
+                <cell id="406"/>
+                <cell id="407"/>
+                <cell id="408"/>
+                <cell id="409"/>
+                <cell id="410"/>
+                <cell id="411"/>
+                <cell id="412"/>
+                <cell id="413"/>
+                <cell id="414"/>
+                <cell id="415"/>
+                <cell id="416"/>
+                <cell id="417"/>
+            </row>
+            <row id="418">
+                <cell id="419">
+                    <text-data id="420">
+                        <expression name="valueExpr">"- только за счет предоставления займов (ссуд), всего, чел."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="421"/>
+                <cell id="422">
+                    <text-data id="423">
+                        <expression name="valueExpr">params["summ_org_employees_code_perc"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="424"/>
+                <cell id="425"/>
+                <cell id="426"/>
+                <cell id="427"/>
+                <cell id="428"/>
+                <cell id="429"/>
+                <cell id="430"/>
+                <cell id="431"/>
+                <cell id="432"/>
+                <cell id="433"/>
+                <cell id="434"/>
+                <cell id="435"/>
+                <cell id="436"/>
+                <cell id="437"/>
+            </row>
+            <row id="438">
+                <cell id="439">
+                    <text-data id="440">
+                        <expression name="valueExpr">"из них до 35 лет, чел."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="441"/>
+                <cell id="442">
+                    <text-data id="443">
+                        <expression name="valueExpr">params["summ_org_employees_code_perc_35"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="444"/>
+                <cell id="445"/>
+                <cell id="446"/>
+                <cell id="447"/>
+                <cell id="448"/>
+                <cell id="449"/>
+                <cell id="450"/>
+                <cell id="451"/>
+                <cell id="452"/>
+                <cell id="453"/>
+                <cell id="454"/>
+                <cell id="455"/>
+                <cell id="456"/>
+                <cell id="457"/>
+            </row>
+            <row id="458">
+                <cell id="459">
+                    <text-data id="460">
+                        <expression name="valueExpr">"предоставлено займов на сумму, всего, тыс. руб."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="461"/>
+                <cell id="462">
+                    <text-data id="463">
+                        <expression name="valueExpr">params["established_loan_amount"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="464"/>
+                <cell id="465"/>
+                <cell id="466"/>
+                <cell id="467"/>
+                <cell id="468"/>
+                <cell id="469"/>
+                <cell id="470"/>
+                <cell id="471"/>
+                <cell id="472"/>
+                <cell id="473"/>
+                <cell id="474"/>
+                <cell id="475"/>
+                <cell id="476"/>
+                <cell id="477"/>
+            </row>
+            <row id="478">
+                <cell id="479">
+                    <text-data id="480">
+                        <expression name="valueExpr">"из них работникам до 35 лет, тыс. руб."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="481"/>
+                <cell id="482">
+                    <text-data id="483">
+                        <expression name="valueExpr">params["established_loan_amount_35"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="484"/>
+                <cell id="485"/>
+                <cell id="486"/>
+                <cell id="487"/>
+                <cell id="488"/>
+                <cell id="489"/>
+                <cell id="490"/>
+                <cell id="491"/>
+                <cell id="492"/>
+                <cell id="493"/>
+                <cell id="494"/>
+                <cell id="495"/>
+                <cell id="496"/>
+                <cell id="497"/>
+            </row>
+            <row id="498">
+                <cell id="499">
+                    <text-data id="500">
+                        <expression name="valueExpr">"- только за счет компенсации % по ипотечным кредитам, всего, чел."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="501"/>
+                <cell id="502">
+                    <text-data id="503">
+                        <expression name="valueExpr">params["summ_employees_php_mortgage_approvals"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="504"/>
+                <cell id="505"/>
+                <cell id="506"/>
+                <cell id="507"/>
+                <cell id="508"/>
+                <cell id="509"/>
+                <cell id="510"/>
+                <cell id="511"/>
+                <cell id="512"/>
+                <cell id="513"/>
+                <cell id="514"/>
+                <cell id="515"/>
+                <cell id="516"/>
+                <cell id="517"/>
+            </row>
+            <row id="518">
+                <cell id="519">
+                    <text-data id="520">
+                        <expression name="valueExpr">"из них до 35 лет, чел."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="521"/>
+                <cell id="522">
+                    <text-data id="523">
+                        <expression name="valueExpr">params["summ_employees_php_mortgage_approvals_35"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="524"/>
+                <cell id="525"/>
+                <cell id="526"/>
+                <cell id="527"/>
+                <cell id="528"/>
+                <cell id="529"/>
+                <cell id="530"/>
+                <cell id="531"/>
+                <cell id="532"/>
+                <cell id="533"/>
+                <cell id="534"/>
+                <cell id="535"/>
+                <cell id="536"/>
+                <cell id="537"/>
+            </row>
+            <row id="538">
+                <cell id="539">
+                    <text-data id="540">
+                        <expression name="valueExpr">"предоставлено компенсаций на сумму, всего, тыс. руб."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="541"/>
+                <cell id="542">
+                    <text-data id="543">
+                        <expression name="valueExpr">params["summ_employees_percent_amount"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="544"/>
+                <cell id="545"/>
+                <cell id="546"/>
+                <cell id="547"/>
+                <cell id="548"/>
+                <cell id="549"/>
+                <cell id="550"/>
+                <cell id="551"/>
+                <cell id="552"/>
+                <cell id="553"/>
+                <cell id="554"/>
+                <cell id="555"/>
+                <cell id="556"/>
+                <cell id="557"/>
+            </row>
+            <row id="558">
+                <cell id="559">
+                    <text-data id="560">
+                        <expression name="valueExpr">"из них работникам до 35 лет, тыс. руб."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="561"/>
+                <cell id="562">
+                    <text-data id="563">
+                        <expression name="valueExpr">params["summ_employees_percent_amount_35"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="564"/>
+                <cell id="565"/>
+                <cell id="566"/>
+                <cell id="567"/>
+                <cell id="568"/>
+                <cell id="569"/>
+                <cell id="570"/>
+                <cell id="571"/>
+                <cell id="572"/>
+                <cell id="573"/>
+                <cell id="574"/>
+                <cell id="575"/>
+                <cell id="576"/>
+                <cell id="577"/>
+            </row>
+            <row id="578">
+                <cell id="579">
+                    <text-data id="580">
+                        <expression name="valueExpr">"- за счет одновременного предоставления займов и компенсации % по ипотечным кредитам, всего, чел."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="581"/>
+                <cell id="582">
+                    <text-data id="583">
+                        <expression name="valueExpr">params["tag_1"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="584"/>
+                <cell id="585"/>
+                <cell id="586"/>
+                <cell id="587"/>
+                <cell id="588"/>
+                <cell id="589"/>
+                <cell id="590"/>
+                <cell id="591"/>
+                <cell id="592"/>
+                <cell id="593"/>
+                <cell id="594"/>
+                <cell id="595"/>
+                <cell id="596"/>
+                <cell id="597"/>
+            </row>
+            <row id="598">
+                <cell id="599">
+                    <text-data id="600">
+                        <expression name="valueExpr">"из них до 35 лет, чел."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="601"/>
+                <cell id="602">
+                    <text-data id="603">
+                        <expression name="valueExpr">params["tag_1_35"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="604"/>
+                <cell id="605"/>
+                <cell id="606"/>
+                <cell id="607"/>
+                <cell id="608"/>
+                <cell id="609"/>
+                <cell id="610"/>
+                <cell id="611"/>
+                <cell id="612"/>
+                <cell id="613"/>
+                <cell id="614"/>
+                <cell id="615"/>
+                <cell id="616"/>
+                <cell id="617"/>
+            </row>
+            <row id="618">
+                <cell id="619">
+                    <text-data id="620">
+                        <expression name="valueExpr">"предоставлено займов на сумму, всего, тыс. руб."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="621"/>
+                <cell id="622">
+                    <text-data id="623">
+                        <expression name="valueExpr">params["tag_2"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="624"/>
+                <cell id="625"/>
+                <cell id="626"/>
+                <cell id="627"/>
+                <cell id="628"/>
+                <cell id="629"/>
+                <cell id="630"/>
+                <cell id="631"/>
+                <cell id="632"/>
+                <cell id="633"/>
+                <cell id="634"/>
+                <cell id="635"/>
+                <cell id="636"/>
+                <cell id="637"/>
+            </row>
+            <row id="638">
+                <cell id="639">
+                    <text-data id="640">
+                        <expression name="valueExpr">"из них работникам до 35 лет, тыс. руб."</expression>
+                        <property name="contentType">plain</property>
+                    </text-data>
+                </cell>
+                <cell id="641"/>
+                <cell id="642">
+                    <text-data id="643">
+                        <expression name="valueExpr">params["tag_2_35"].value</expression>
+                        <property name="contentType">html</property>
+                    </text-data>
+                </cell>
+                <cell id="644"/>
+                <cell id="645"/>
+                <cell id="646"/>
+                <cell id="647"/>
+                <cell id="648"/>
+                <cell id="649"/>
+                <cell id="650"/>
+                <cell id="651"/>
+                <cell id="652"/>
+                <cell id="653"/>
+                <cell id="654"/>
+                <cell id="655"/>
+                <cell id="656"/>
+                <cell id="657"/>
+            </row>
+        </grid>
+    </body>
+</report>
