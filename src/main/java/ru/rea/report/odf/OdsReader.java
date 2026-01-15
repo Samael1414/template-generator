@@ -82,10 +82,14 @@ public class OdsReader {
                     OdfTableCell cell = row.getCellByIndex(c);
                     boolean covered = isCoveredCell(cell);
 
-                    CellIR cellIR = new CellIR(fastCellText(cell))
-                            .setCovered(covered);
+                    // covered ячейки НЕ добавляем в строку - они должны быть частью span'ов
+                    if (covered) {
+                        continue; // пропускаем, master создаст span автоматически
+                    }
 
-                    if (!covered && cell != null) {
+                    CellIR cellIR = new CellIR(fastCellText(cell));
+
+                    if (cell != null) {
                         int cs = colSpanOf(cell);
                         int rs = rowSpanOf(cell);
 

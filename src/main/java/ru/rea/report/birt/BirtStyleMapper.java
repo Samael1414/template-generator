@@ -29,6 +29,26 @@ public class BirtStyleMapper {
             if (style.getBackgroundColor() != null && !style.getBackgroundColor().isBlank()) {
                 handle.setProperty(StyleHandle.BACKGROUND_COLOR_PROP, style.getBackgroundColor());
             }
+            
+            // Устанавливаем границы для всех ячеек: solid 1px
+            try {
+                handle.setProperty(StyleHandle.BORDER_TOP_STYLE_PROP, DesignChoiceConstants.LINE_STYLE_SOLID);
+                handle.setProperty(StyleHandle.BORDER_BOTTOM_STYLE_PROP, DesignChoiceConstants.LINE_STYLE_SOLID);
+                handle.setProperty(StyleHandle.BORDER_LEFT_STYLE_PROP, DesignChoiceConstants.LINE_STYLE_SOLID);
+                handle.setProperty(StyleHandle.BORDER_RIGHT_STYLE_PROP, DesignChoiceConstants.LINE_STYLE_SOLID);
+                
+                handle.setProperty(StyleHandle.BORDER_TOP_WIDTH_PROP, "1px");
+                handle.setProperty(StyleHandle.BORDER_BOTTOM_WIDTH_PROP, "1px");
+                handle.setProperty(StyleHandle.BORDER_LEFT_WIDTH_PROP, "1px");
+                handle.setProperty(StyleHandle.BORDER_RIGHT_WIDTH_PROP, "1px");
+                
+                handle.setProperty(StyleHandle.BORDER_TOP_COLOR_PROP, "#000000");
+                handle.setProperty(StyleHandle.BORDER_BOTTOM_COLOR_PROP, "#000000");
+                handle.setProperty(StyleHandle.BORDER_LEFT_COLOR_PROP, "#000000");
+                handle.setProperty(StyleHandle.BORDER_RIGHT_COLOR_PROP, "#000000");
+            } catch (Exception e) {
+                System.out.println("[TPLGEN] style-borders failed: " + e.getMessage());
+            }
         } catch (SemanticException ex) {
             System.out.println("[TPLGEN] style-apply failed: " + ex.getMessage());
         }

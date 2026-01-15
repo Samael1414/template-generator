@@ -276,7 +276,7 @@ public class BirtDesignBuilder {
                     continue;
                 }
 
-                // --- КЛЮЧЕВО: covered -> DROP на master ---
+                // --- КЛЮЧЕВО: covered -> markCoveredDrop ---
                 if (cell.isCovered()) {
                     int mr = masterRow[r][c];
                     int mc = masterCol[r][c];
@@ -300,6 +300,21 @@ public class BirtDesignBuilder {
                 int rawRs = cell.getRowSpan();
                 int cs = Math.min(Math.max(rawCs, 1), cols - c);
                 int rs = Math.min(Math.max(rawRs, 1), rows - r);
+
+                // Проверка, что span не перекрывается с уже занятыми ячейками
+                for (int checkC = c + 1; checkC < c + cs && checkC < cols; checkC++) {
+                    if (m[r][checkC] != null && !m[r][checkC].isCovered()) {
+                        log.w("grid:spanOverlap detected r=" + r + " c=" + c + " cs=" + cs + " overlapAt=" + checkC);
+                        cs = checkC - c; // уменьшаем span до безопасного размера
+                        break;
+                    }
+                }
+
+                // Дополнительная проверка: ограничить span, чтобы не выходить за границы таблицы
+                if (c + cs > cols) {
+                    log.w("grid:spanExceedsCols r=" + r + " c=" + c + " cs=" + cs + " maxCols=" + cols);
+                    cs = cols - c;
+                }
 
                 boolean hasSpan = (cs > 1 || rs > 1);
 
@@ -372,8 +387,8 @@ public class BirtDesignBuilder {
         cell.clearProperty(CellHandle.COL_SPAN_PROP);
         cell.clearProperty(CellHandle.ROW_SPAN_PROP);
 
-        // ВАЖНО: drop должен быть строкой id master
-        cell.setProperty(CellHandle.DROP_PROP, String.valueOf(masterCell.getID()));
+        // Не задаем drop для covered-ячейки, чтобы избежать corrupted в BIRT Designer
+        cell.clearProperty(CellHandle.DROP_PROP);
 
 
         // чистим визуальные стили у covered (они “живут” на мастере)
@@ -395,7 +410,7 @@ public class BirtDesignBuilder {
         cell.clearProperty(StyleHandle.BORDER_LEFT_WIDTH_PROP);
         cell.clearProperty(StyleHandle.BORDER_RIGHT_WIDTH_PROP);
 
-        log.i("covered cell drop r=" + r + " c=" + c + " masterId=" + masterCell.getID());
+        log.i("covered cell cleared r=" + r + " c=" + c + " drop=none");
     }
 
     private static void validateGridStructure(GridHandle grid) throws SemanticException {

@@ -29,6 +29,8 @@ public final class TableIR implements BlockIR {
 
             if (roughCols < 1) roughCols = 1;
 
+            System.out.println("[TPLGEN][TABLE] normalize start rows=" + rows + " roughCols=" + roughCols);
+
             CellIR[][] m = new CellIR[rows][roughCols];
             boolean[][] occ = new boolean[rows][roughCols];
 
@@ -56,6 +58,8 @@ public final class TableIR implements BlockIR {
                     int cs = Math.max(srcCell.getColSpan(), 1);
                     int rs = Math.max(srcCell.getRowSpan(), 1);
 
+                    System.out.println("[TPLGEN][TABLE] place master r=" + r + " c=" + c + " cs=" + cs + " rs=" + rs + " text=" + srcCell.getText().substring(0, Math.min(10, srcCell.getText().length())));
+
                     // ограничить
                     cs = Math.min(cs, roughCols - c);
                     rs = Math.min(rs, rows - r);
@@ -65,6 +69,7 @@ public final class TableIR implements BlockIR {
                         for (int cc = c; cc < c + cs; cc++) {
                             if (occ[rr][cc] && !(rr == r && cc == c)) {
                                 // пересечение merge-областей — это гарантированно "corrupted" для BIRT
+                                System.err.println("[TPLGEN][TABLE] MERGE OVERLAP at r=" + rr + " c=" + cc + " (master r=" + r + " c=" + c + " cs=" + cs + " rs=" + rs + ")");
                                 throw new IllegalStateException(
                                         "Merge overlap at r=" + rr + " c=" + cc +
                                                 " (master r=" + r + " c=" + c + " cs=" + cs + " rs=" + rs + ")"
@@ -84,24 +89,12 @@ public final class TableIR implements BlockIR {
                     }
 
                     maxUsedCol = Math.max(maxUsedCol, c + cs - 1);
-
-                    // перейти дальше
-                    c++;
                 }
             }
 
-            // финальные cols = maxUsedCol+1
-            int cols = Math.max(maxUsedCol + 1, 1);
-
-            // подрезаем матрицу до cols и заполняем null плейсхолдерами
-            CellIR[][] trimmed = new CellIR[rows][cols];
-            for (int r = 0; r < rows; r++) {
-                for (int c = 0; c < cols; c++) {
-                    trimmed[r][c] = (m[r][c] != null) ? m[r][c] : new CellIR("");
-                }
-            }
-
-            return new NormalizedTable(rows, cols, trimmed);
+            int finalCols = maxUsedCol + 1;
+            System.out.println("[TPLGEN][TABLE] normalize done rows=" + rows + " finalCols=" + finalCols);
+            return new NormalizedTable(rows, finalCols, m);
         }
 
 
