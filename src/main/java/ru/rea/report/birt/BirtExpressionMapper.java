@@ -1,8 +1,6 @@
 package ru.rea.report.birt;
 
 import org.springframework.stereotype.Component;
-import ru.rea.report.tags.TagRegistry;
-
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -12,27 +10,15 @@ public class BirtExpressionMapper {
     private static final Pattern BRACKET_PARAM =
             Pattern.compile("\\[([A-Za-z_][A-Za-z0-9_]{0,120})]");
 
-    public boolean hasParams(String text) {
-        if (text == null || text.isBlank()) return false;
-        return BRACKET_PARAM.matcher(text).find();
-    }
-
     public boolean containsTagsOrParams(String s) {
         if (s == null || s.isBlank()) return false;
-
-        if (s.matches(".*\\[[A-Za-z0-9_]+\\].*")) return true;
-
-        if (s.contains("${")) return true;
-
-        return false;
+        if (BRACKET_PARAM.matcher(s).find()) return true;
+        return s.contains("${");
     }
-
-
 
     public String toHtmlValueExpr(String text) {
         if (text == null) return "\"\"";
 
-        // нормализуем переносы сразу
         String src = text.replace("\r\n", "\n").replace("\r", "\n");
 
         Matcher m = BRACKET_PARAM.matcher(src);
@@ -69,6 +55,7 @@ public class BirtExpressionMapper {
     }
 
     private static String escapeJsString(String s) {
+        if (s == null) return "";
         return s.replace("\\", "\\\\")
                 .replace("\"", "\\\"")
                 .replace("\u2028", "")

@@ -30,7 +30,6 @@ public class BirtStyleMapper {
                 handle.setProperty(StyleHandle.BACKGROUND_COLOR_PROP, style.getBackgroundColor());
             }
             
-            // Устанавливаем границы для всех ячеек: solid 1px
             try {
                 handle.setProperty(StyleHandle.BORDER_TOP_STYLE_PROP, DesignChoiceConstants.LINE_STYLE_SOLID);
                 handle.setProperty(StyleHandle.BORDER_BOTTOM_STYLE_PROP, DesignChoiceConstants.LINE_STYLE_SOLID);
