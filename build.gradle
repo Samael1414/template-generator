@@ -1,8 +1,17 @@
 plugins {
     id 'java'
+    id 'application'
     id 'org.springframework.boot' version '3.2.12'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'org.openjfx.javafxplugin' version '0.1.0'
+}
+
+application {
+    mainClass = 'ru.rea.report.TemplateGeneratorApplication'
+}
+
+springBoot {
+    mainClass = 'ru.rea.report.TemplateGeneratorApplication'
 }
 
 group = 'ru.rea.ippk'
@@ -24,7 +33,7 @@ configurations.all {
 
 javafx {
     version = '21.0.5'
-    modules = [ 'javafx.controls' ] // этого достаточно, остальное подтянется
+    modules = [ 'javafx.controls' ]
 }
 
 dependencies {
@@ -33,18 +42,14 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
     implementation 'commons-io:commons-io:2.16.1'
-
     compileOnly 'org.projectlombok:lombok:1.18.34'
     annotationProcessor 'org.projectlombok:lombok:1.18.34'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
-
     implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
     implementation 'ch.qos.logback:logback-classic:1.5.6'
     implementation 'ch.qos.logback:logback-core:1.5.6'
     implementation 'org.slf4j:slf4j-api:2.0.16'
-
     implementation 'org.odftoolkit:odfdom-java:0.12.0'
-
     // BIRT 4.20.0
     implementation 'org.eclipse.birt:org.eclipse.birt.core:4.20.0'
     implementation 'org.eclipse.birt:org.eclipse.birt.report.engine:4.20.0'
@@ -60,4 +65,8 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+tasks.named('bootJar') {
+    archiveFileName = 'template-generator.jar'
 }
