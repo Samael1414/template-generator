@@ -121,9 +121,6 @@ try {
         "Installation completed. The application will now start.",
         "Template Generator"
     ) | Out-Null
-
-    Start-Process -FilePath "javaw" -ArgumentList "-Xms256m","-Xmx1024m","-Dfile.encoding=UTF-8","-jar","template-generator.jar" -WorkingDirectory $appHome -WindowStyle Hidden | Out-Null
-
     exit 0
 }
 catch {
