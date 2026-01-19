@@ -2,11 +2,16 @@ package ru.rea.report.birt;
 
 import com.ibm.icu.util.ULocale;
 import lombok.RequiredArgsConstructor;
+import org.apache.logging.log4j.util.Supplier;
 import org.eclipse.birt.report.model.api.*;
 import org.eclipse.birt.report.model.api.activity.SemanticException;
+import org.eclipse.birt.report.model.api.core.IModuleModel;
 import org.eclipse.birt.report.model.api.elements.DesignChoiceConstants;
+import org.eclipse.birt.report.model.api.elements.structures.EmbeddedImage;
 import org.springframework.stereotype.Component;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 import ru.rea.report.exception.TemplateProcessingException;
 import ru.rea.report.ir.*;
 import ru.rea.report.tags.TagRegistry;
@@ -17,6 +22,7 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.*;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,6 +40,10 @@ public class BirtDesignBuilder {
     private static final String DROP_ALL = DesignChoiceConstants.DROP_TYPE_ALL;
 
     public void build(TemplateDocumentIR ir, TagRegistry tags, OutputStream out) {
+        build(ir, tags, null, out);
+    }
+
+    public void build(TemplateDocumentIR ir, TagRegistry tags, Path optionalPngPath, OutputStream out) {
         SessionHandle session = null;
 
         StringBuilder dbg = new StringBuilder(64_000);
@@ -54,16 +64,19 @@ public class BirtDesignBuilder {
             report.setProperty("language", "javascript");
             report.setProperty("locale", ULocale.getDefault().toString());
             report.setProperty("units", "mm");
-            report.setProperty("layoutPreference", "auto layout");
+            report.setProperty("layoutPreference", "fixed layout");
             report.setProperty("imageDPI", "96");
 
             ensureMasterPage(report, ir, log);
+            logMasterPage(report, log);
+
             declareParams(report, tags, log);
 
             GridHandle masterGrid = report.getElementFactory().newGridItem("MASTER_GRID", 1, 1);
+            logGridGeometry(masterGrid, "MASTER_GRID", log);
             masterGrid.setProperty(GridHandle.WIDTH_PROP, "100%");
             ColumnHandle mgCol = (ColumnHandle) masterGrid.getColumns().get(0);
-            mgCol.clearProperty(ColumnHandle.WIDTH_PROP);
+
 
             RowHandle mgRow = (RowHandle) masterGrid.getRows().get(0);
             CellHandle mgCell = (CellHandle) mgRow.getCells().get(0);
@@ -90,6 +103,12 @@ public class BirtDesignBuilder {
                         paraBuf.clear();
                     }
 
+                    if (block instanceof ImageIR img) {
+                        GridHandle ig = buildImageGrid(report, img, log);
+                        if (ig != null) mgCell.getContent().add(ig);
+                        continue;
+                    }
+
                     if (block instanceof TableIR t) {
                         int rcount = (t.getRows() == null) ? 0 : t.getRows().size();
                         log.i("block#" + idx + ": table rows=" + rcount);
@@ -114,15 +133,23 @@ public class BirtDesignBuilder {
 
             report.getBody().add(masterGrid);
 
+            applyOptionalPng(report, optionalPngPath, log);
+            logAllImages(report, log);
+
             tmpRpt = debugDir.resolve("generated.rptdesign");
             report.saveAs(tmpRpt.toAbsolutePath().toString());
+            logXmlImageGeometry(tmpRpt, EMBEDDED_LOGO_NAME, log);
             log.i("build:saved " + tmpRpt);
 
             RptDesignSanitizer.Options opt = new RptDesignSanitizer.Options();
-            opt.forceDropAllForCoveredCells = false;
-            opt.fixRowCellCount = false;
+            opt.forceDropAllForCoveredCells = true;
+            opt.fixRowCellCount = true;
             opt.compactRowsRemoveCoveredCells = true;
+            log.i("logo:dataHead(beforeSan)=" + readEmbeddedImageDataHead(tmpRpt, "logo.png"));
             RptDesignSanitizer.sanitize(tmpRpt, opt);
+
+            logXmlImageGeometry(tmpRpt, EMBEDDED_LOGO_NAME, log);
+            log.i("logo:dataHead(afterSan)=" + readEmbeddedImageDataHead(tmpRpt, "logo.png"));
             log.i("build:sanitized rptdesign dropCovered=" + opt.forceDropAllForCoveredCells + " ver=" + opt.forceReportVersion);
 
             String xml = Files.readString(tmpRpt, StandardCharsets.UTF_8);
@@ -467,7 +494,7 @@ public class BirtDesignBuilder {
             return null;
         }
 
-        var nt = TableIR.TableNormalizer.normalize(table);
+        TableIR.TableNormalizer.NormalizedTable nt = TableIR.TableNormalizer.normalize(table);
         int rows = nt.rows();
         int cols = nt.cols();
         CellIR[][] m = nt.cells();
@@ -476,14 +503,45 @@ public class BirtDesignBuilder {
         validateNormalizedMatrixOrThrow(m, rows, cols, log);
 
         GridHandle grid = report.getElementFactory().newGridItem(null, cols, rows);
-        grid.setProperty(GridHandle.WIDTH_PROP, "100%");
+        float contentWidthMm = getContentWidthMm(report);
 
-        grid.clearProperty(GridHandle.WIDTH_PROP);
+        List<Float> colMm = normalizeColWidthsMm(table.getColWidthsMm(), cols);
 
-        for (int c = 0; c < cols; c++) {
-            ColumnHandle colH = (ColumnHandle) grid.getColumns().get(c);
-            colH.clearProperty(ColumnHandle.WIDTH_PROP);
+        if (contentWidthMm > 0.1f && colMm != null && sumPositive(colMm) > 0.1f) {
+            log.i("grid:widthMode=" + ((contentWidthMm > 0.1f && colMm != null && sumPositive(colMm) > 0.1f) ? "MM" : "PCT"));
+
+            grid.setProperty(GridHandle.WIDTH_PROP, fmtMm(contentWidthMm));
+
+            float sum = sumPositive(colMm);
+            float k = contentWidthMm / sum;
+            log.i("grid:table fromOds=" + table.isFromOds()
+                    + " contentWidthMm=" + contentWidthMm
+                    + " rawColMm=" + (table.getColWidthsMm() == null ? "null" : table.getColWidthsMm().size())
+                    + " normColMm=" + (colMm == null ? "null" : colMm.size())
+                    + " sumColMm=" + sumPositive(colMm));
+            if (colMm != null) {
+                log.i("grid:colMm=" + colMm);
+            }
+
+
+            for (int c = 0; c < cols; c++) {
+                float src = Math.max(0f, colMm.get(c) == null ? 0f : colMm.get(c));
+                float wmm = Math.max(1f, src * k);
+                ColumnHandle colH = (ColumnHandle) grid.getColumns().get(c);
+                log.i("grid:col[" + c + "] widthProp=" + colH.getProperty(ColumnHandle.WIDTH_PROP));
+                colH.setProperty(ColumnHandle.WIDTH_PROP, fmtMm(wmm));
+            }
+        } else {
+            grid.setProperty(GridHandle.WIDTH_PROP, "100%");
+            double colPct = 100.0 / cols;
+            for (int c = 0; c < cols; c++) {
+                ColumnHandle colH = (ColumnHandle) grid.getColumns().get(c);
+                log.i("grid:col[" + c + "] widthProp=" + colH.getProperty(ColumnHandle.WIDTH_PROP));
+                colH.setProperty(ColumnHandle.WIDTH_PROP, String.format(Locale.ROOT, "%.4f%%", colPct));
+            }
         }
+
+
 
 
         CellHandle[][] cellHandles = new CellHandle[rows][cols];
@@ -513,7 +571,7 @@ public class BirtDesignBuilder {
                 int cs = Math.min(rawCs, cols - c);
                 int rs = Math.min(rawRs, rows - r);
 
-                if (rs == 1 && cs >= 1) {
+                if (!table.isFromOds() && rs == 1 && cs >= 1) {
                     while (true) {
                         int nextCol = c + cs;
                         if (nextCol >= cols) break;
@@ -580,6 +638,44 @@ public class BirtDesignBuilder {
         validateGridStructure(grid);
         return grid;
     }
+
+    private static List<Float> normalizeColWidthsMm(List<Float> src, int cols) {
+        if (cols <= 0) return null;
+        if (src == null || src.isEmpty()) return null;
+
+        ArrayList<Float> cleaned = new ArrayList<>(src.size());
+        for (Float v : src) cleaned.add(v == null ? 0f : Math.max(0f, v));
+
+        if (cleaned.size() == cols) return cleaned;
+
+        ArrayList<Float> out = new ArrayList<>(cols);
+
+        if (cleaned.size() == 1) {
+            float w = cleaned.get(0);
+            for (int i = 0; i < cols; i++) out.add(w);
+            return out;
+        }
+
+        if (cleaned.size() < cols) {
+            out.addAll(cleaned);
+            float fill = 0f;
+
+            fill = cleaned.get(cleaned.size() - 1);
+
+            if (fill <= 0f) {
+                float sum = 0f; int cnt = 0;
+                for (Float v : cleaned) if (v != null && v > 0f) { sum += v; cnt++; }
+                fill = (cnt > 0) ? (sum / cnt) : 0f;
+            }
+
+            while (out.size() < cols) out.add(fill);
+            return out;
+        }
+
+        for (int i = 0; i < cols; i++) out.add(cleaned.get(i));
+        return out;
+    }
+
 
     private static void markCoveredDrop(CellHandle cell, int r, int c, DebugSink log) throws SemanticException {
         clearSlot(cell.getContent());
@@ -1099,10 +1195,8 @@ public class BirtDesignBuilder {
         GridHandle g = report.getElementFactory().newGridItem(null, 1, rows);
 
         g.setProperty(GridHandle.WIDTH_PROP, "100%");
-        g.clearProperty(GridHandle.WIDTH_PROP);
 
         ColumnHandle col = (ColumnHandle) g.getColumns().get(0);
-        col.clearProperty(ColumnHandle.WIDTH_PROP);
 
         for (int i = 0; i < rows; i++) {
             ParagraphIR p = paragraphs.get(i);
@@ -1124,6 +1218,607 @@ public class BirtDesignBuilder {
         }
 
         return g;
+    }
+
+    private static final String EMBEDDED_LOGO_NAME = "logo.png";
+
+    private void applyOptionalPng(ReportDesignHandle report, Path pngPath, DebugSink log) {
+        if (report == null || pngPath == null) return;
+
+        try {
+            if (!Files.exists(pngPath)) {
+                log.i("png: skip (not exists): " + pngPath);
+                return;
+            }
+
+            ensureEmbeddedImage(report, EMBEDDED_LOGO_NAME, pngPath, log);
+            log.i("png: ensured embedded=" + EMBEDDED_LOGO_NAME);
+
+        } catch (Exception e) {
+            log.i("png: failed (" + e.getClass().getSimpleName() + "): " + e.getMessage());
+        }
+    }
+
+
+    private void applyEmbeddedToImageItem(ImageHandle img, String embName, DebugSink log, String where) throws Exception {
+        img.setImageName(embName);
+
+        try {
+            img.setProperty(ImageHandle.SOURCE_PROP, DesignChoiceConstants.IMAGE_REF_TYPE_EMBED);
+        } catch (Throwable ignore) {
+            img.setProperty(ImageHandle.SOURCE_PROP, "embed");
+        }
+
+        img.clearProperty(ImageHandle.URI_PROP);
+
+        log.i("png: applied embedded (" + where + ") id=" + img.getID()
+                + " name=" + img.getName() + " emb=" + embName);
+    }
+
+
+
+    private void ensureEmbeddedImage(ReportDesignHandle report, String embName, Path pngPath, DebugSink log) throws Exception {
+        if (report == null || embName == null || embName.isBlank() || pngPath == null) return;
+
+        byte[] pngBytes = Files.readAllBytes(pngPath);
+        log.i("png: path=" + pngPath + " size=" + pngBytes.length + " head=" + hexPrefix(pngBytes, 16));
+
+        if (!isPng(pngBytes)) throw new IllegalStateException("File is not PNG. head=" + hexPrefix(pngBytes, 16));
+        if (pngBytes.length == 0) throw new IllegalStateException("PNG is empty: " + pngPath);
+
+        PropertyHandle images = report.getPropertyHandle(IModuleModel.IMAGES_PROP);
+        EmbeddedImageHandle existing = findEmbeddedImageByName(images, embName);
+
+        if (existing == null) {
+            EmbeddedImage st = StructureFactory.createEmbeddedImage();
+            st.setName(embName);
+            st.setType(DesignChoiceConstants.IMAGE_TYPE_IMAGE_PNG);
+
+            // ВАЖНО: кладём СЫРЫЕ PNG bytes
+            st.setData(pngBytes);
+
+            images.addItem(st);
+            log.i("embeddedImage: added name=" + embName + " pngBytes=" + pngBytes.length);
+        } else {
+            existing.setType(DesignChoiceConstants.IMAGE_TYPE_IMAGE_PNG);
+
+            // ВАЖНО: кладём СЫРЫЕ PNG bytes
+            Object s = existing.getStructure();
+            if (s instanceof EmbeddedImage ei) {
+                ei.setData(pngBytes);
+            } else {
+                // если вдруг структура не та — всё равно пробуем через property как bytes
+                existing.setProperty(EmbeddedImage.DATA_MEMBER, new String(pngBytes, java.nio.charset.Charset.forName(EmbeddedImage.CHARSET)));
+            }
+
+            log.i("embeddedImage: updated name=" + embName + " pngBytes=" + pngBytes.length);
+        }
+    }
+
+
+    private EmbeddedImageHandle findEmbeddedImageByName(PropertyHandle images, String embName) {
+        if (images == null || embName == null) return null;
+
+        for (java.util.Iterator<?> it = images.iterator(); it.hasNext(); ) {
+            Object o = it.next();
+
+            if (o instanceof EmbeddedImageHandle eh) {
+                if (embName.equals(eh.getName())) return eh;
+                continue;
+            }
+
+            if (o instanceof StructureHandle sh) {
+                Object s = sh.getStructure();
+                if (s instanceof EmbeddedImage ei) {
+                    Object n = ei.getProperty(null, EmbeddedImage.NAME_MEMBER);
+                    if (embName.equals(n)) return (EmbeddedImageHandle) sh;
+                }
+            }
+        }
+        return null;
+    }
+
+
+    private ImageHandle findFirstImageInSlot(SlotHandle slot) throws Exception {
+        if (slot == null) return null;
+
+        int n = slot.getCount();
+        for (int i = 0; i < n; i++) {
+            DesignElementHandle el = (DesignElementHandle) slot.get(i);
+            ImageHandle found = findFirstImageInElement(el);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private ImageHandle findFirstImageInElement(DesignElementHandle el) throws Exception {
+        if (el == null) return null;
+
+        if (el instanceof ImageHandle img) return img;
+
+        List<?> slotDefs = getSlotDefsCompat(el);
+        if (slotDefs == null || slotDefs.isEmpty()) return null;
+
+        for (Object sd : slotDefs) {
+            String slotName = getSlotNameCompat(sd);
+            if (slotName == null || slotName.isBlank()) continue;
+
+            SlotHandle child = getSlotHandleCompat(el, sd, slotName);
+            ImageHandle inSlot = findFirstImageInSlot(child);
+            if (inSlot != null) return inSlot;
+        }
+
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<?> getSlotDefsCompat(DesignElementHandle el) {
+        try {
+            Object defn = el.getDefn();
+            if (defn == null) return null;
+
+            try {
+                Method m = defn.getClass().getMethod("getSlotDefinitions");
+                Object r = m.invoke(defn);
+                if (r instanceof List) return (List<?>) r;
+            } catch (NoSuchMethodException ignore) {
+            }
+
+            try {
+                Method m = defn.getClass().getMethod("getSlots");
+                Object r = m.invoke(defn);
+                if (r instanceof List) return (List<?>) r;
+            } catch (NoSuchMethodException ignore) {
+                return null;
+            }
+
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String getSlotNameCompat(Object slotDef) {
+        if (slotDef == null) return null;
+        try {
+            Method m = slotDef.getClass().getMethod("getName");
+            Object r = m.invoke(slotDef);
+            return (r == null) ? null : String.valueOf(r);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+
+    private SlotHandle getSlotHandleCompat(DesignElementHandle el, Object slotDef, String slotName) {
+        if (el == null) return null;
+
+        // 1) Иногда в других версиях/сборках мог быть getSlot(String) — пробуем рефлексией
+        try {
+            Method m = el.getClass().getMethod("getSlot", String.class);
+            Object r = m.invoke(el, slotName);
+            if (r instanceof SlotHandle sh) return sh;
+        } catch (NoSuchMethodException ignore) {
+            // в BIRT 4.20 обычно нет
+        } catch (Exception ignore) {
+            // не критично
+        }
+
+        // 2) BIRT 4.20: getSlot(int). Нужно получить slotId из slotDef
+        Integer slotId = getSlotIdCompat(slotDef);
+        if (slotId == null) return null;
+
+        try {
+            return el.getSlot(slotId);
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
+
+    private Integer getSlotIdCompat(Object slotDef) {
+        if (slotDef == null) return null;
+        String[] candidates = new String[] {
+                "getSlotID", "getSlotId", "getID", "getId", "getIndex"
+        };
+
+        for (String mn : candidates) {
+            try {
+                Method m = slotDef.getClass().getMethod(mn);
+                Object r = m.invoke(slotDef);
+                if (r instanceof Integer i) return i;
+                if (r instanceof Number n) return n.intValue();
+                if (r != null) {
+                    try { return Integer.parseInt(String.valueOf(r).trim()); } catch (Exception ignore) {}
+                }
+            } catch (NoSuchMethodException ignore) {
+            } catch (Exception ignore) {
+            }
+        }
+        return null;
+    }
+
+    private GridHandle buildImageGrid(ReportDesignHandle report, ImageIR img, DebugSink log) throws SemanticException {
+        GridHandle g = report.getElementFactory().newGridItem(null, 1, 1);
+        g.setProperty(GridHandle.WIDTH_PROP, "100%");
+
+        RowHandle row = (RowHandle) g.getRows().get(0);
+        CellHandle cell = (CellHandle) row.getCells().get(0);
+
+        cell.setProperty(StyleHandle.TEXT_ALIGN_PROP, "center");
+
+        ImageHandle ih = report.getElementFactory().newImage(null);
+        log.i("image:item props source=" + ih.getProperty(ImageHandle.SOURCE_PROP)
+                + " imageName=" + ih.getProperty(ImageHandle.IMAGE_NAME_PROP)
+                + " uri=" + ih.getProperty(ImageHandle.URI_PROP));
+
+
+        if (img.getWidthMm() != null) ih.setProperty(StyleHandle.WIDTH_PROP, fmtMm(img.getWidthMm()));
+        if (img.getHeightMm() != null) ih.setProperty(StyleHandle.HEIGHT_PROP, fmtMm(img.getHeightMm()));
+
+        ih.setProperty(ImageHandle.SOURCE_PROP, "embed");
+        ih.setProperty(ImageHandle.IMAGE_NAME_PROP, EMBEDDED_LOGO_NAME);
+        ih.clearProperty(ImageHandle.URI_PROP);
+
+        cell.getContent().add(ih);
+
+        log.i("image:block added name=" + img.getName()
+                + " w=" + img.getWidthMm() + "mm h=" + img.getHeightMm() + "mm"
+                + " -> embed=" + EMBEDDED_LOGO_NAME);
+        return g;
+    }
+
+    private static boolean isPng(byte[] b) {
+        return b != null && b.length >= 8
+                && (b[0] & 0xFF) == 0x89
+                && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47
+                && b[4] == 0x0D && b[5] == 0x0A && b[6] == 0x1A && b[7] == 0x0A;
+    }
+
+    private static String hexPrefix(byte[] b, int n) {
+        if (b == null) return "null";
+        int k = Math.min(n, b.length);
+        StringBuilder sb = new StringBuilder(k * 3);
+        for (int i = 0; i < k; i++) sb.append(String.format("%02X ", b[i]));
+        return sb.toString().trim();
+    }
+
+    private static String readEmbeddedImageDataHead(Path rpt, String imageName) {
+        try {
+            String xml = Files.readString(rpt, StandardCharsets.UTF_8);
+
+            int iName = xml.indexOf("<property name=\"name\">" + imageName + "</property>");
+            if (iName < 0) return "name-not-found";
+
+            int iDataOpen = xml.indexOf("<property name=\"data\">", iName);
+            if (iDataOpen < 0) return "data-open-not-found";
+
+            int start = iDataOpen + "<property name=\"data\">".length();
+            int end = xml.indexOf("</property>", start);
+            if (end < 0) return "data-close-not-found";
+
+            String data = xml.substring(start, end)
+                    .replace("\r", "")
+                    .replace("\n", "")
+                    .replaceAll("\\s+", "");
+
+            return data.substring(0, Math.min(24, data.length()));
+        } catch (Exception e) {
+            return "read-failed:" + e.getClass().getSimpleName();
+        }
+    }
+
+    private void logMasterPage(ReportDesignHandle report, DebugSink log) throws SemanticException {
+        if (report == null || report.getMasterPages() == null || report.getMasterPages().getCount() == 0) {
+            log.i("mp: none");
+            return;
+        }
+
+        for (int i = 0; i < report.getMasterPages().getCount(); i++) {
+            DesignElementHandle h = (DesignElementHandle) report.getMasterPages().get(i);
+            if (!(h instanceof SimpleMasterPageHandle mp)) {
+                log.i("mp#" + i + ": " + h.getClass().getSimpleName() + " name=" + h.getName());
+                continue;
+            }
+
+            log.i("mp#" + i
+                    + " name=" + mp.getName()
+                    + " type=" + mp.getProperty("type")
+                    + " orientation=" + mp.getProperty("orientation")
+                    + " width=" + mp.getProperty("width")
+                    + " height=" + mp.getProperty("height")
+                    + " margins t=" + mp.getProperty("topMargin")
+                    + " l=" + mp.getProperty("leftMargin")
+                    + " b=" + mp.getProperty("bottomMargin")
+                    + " r=" + mp.getProperty("rightMargin"));
+        }
+    }
+
+    private void logGridGeometry(GridHandle g, String tag, DebugSink log) throws SemanticException {
+        if (g == null) return;
+
+        log.i(tag + ": grid id=" + g.getID()
+                + " name=" + g.getName()
+                + " widthProp=" + g.getProperty(GridHandle.WIDTH_PROP)
+                + " colCount=" + g.getColumns().getCount()
+                + " rowCount=" + g.getRows().getCount());
+
+        // колонки
+        for (int c = 0; c < g.getColumns().getCount(); c++) {
+            ColumnHandle col = (ColumnHandle) g.getColumns().get(c);
+            log.i(tag + ":  col[" + c + "] width=" + col.getProperty(ColumnHandle.WIDTH_PROP));
+        }
+
+        // строки + ячейки (коротко)
+        for (int r = 0; r < g.getRows().getCount(); r++) {
+            RowHandle row = (RowHandle) g.getRows().get(r);
+            Object h = row.getProperty(RowHandle.HEIGHT_PROP);
+            log.i(tag + ":  row[" + r + "] height=" + h + " cellCount=" + row.getCells().getCount());
+
+            for (int c = 0; c < row.getCells().getCount(); c++) {
+                CellHandle cell = (CellHandle) row.getCells().get(c);
+                Object cs = cell.getProperty(CellHandle.COL_SPAN_PROP);
+                Object rs = cell.getProperty(CellHandle.ROW_SPAN_PROP);
+                Object drop = cell.getProperty(CellHandle.DROP_PROP);
+
+                log.i(tag + ":    cell[" + r + "," + c + "] id=" + cell.getID()
+                        + " cs=" + cs + " rs=" + rs + " drop=" + drop
+                        + " align=" + cell.getProperty(StyleHandle.TEXT_ALIGN_PROP)
+                        + " padT=" + cell.getProperty(StyleHandle.PADDING_TOP_PROP)
+                        + " padB=" + cell.getProperty(StyleHandle.PADDING_BOTTOM_PROP)
+                        + " padL=" + cell.getProperty(StyleHandle.PADDING_LEFT_PROP)
+                        + " padR=" + cell.getProperty(StyleHandle.PADDING_RIGHT_PROP)
+                        + " contentCount=" + cell.getContent().getCount());
+            }
+        }
+    }
+
+
+    private void logAllImages(ReportDesignHandle report, DebugSink log) throws SemanticException {
+        log.i("img: scan start");
+
+        // Body
+        logImagesInSlot(report.getBody(), "body", log);
+
+        // MasterPages
+        if (report.getMasterPages() != null) {
+            for (int i = 0; i < report.getMasterPages().getCount(); i++) {
+                DesignElementHandle mph = (DesignElementHandle) report.getMasterPages().get(i);
+                logImagesInElement(mph, "master#" + i, log);
+            }
+        }
+
+        log.i("img: scan done");
+    }
+
+    private void logImagesInSlot(SlotHandle slot, String where, DebugSink log) throws SemanticException {
+        if (slot == null) return;
+        for (int i = 0; i < slot.getCount(); i++) {
+            DesignElementHandle el = (DesignElementHandle) slot.get(i);
+            logImagesInElement(el, where, log);
+        }
+    }
+    private static float sumPositive(List<Float> mm) {
+        if (mm == null) return 0f;
+        float s = 0f;
+        for (Float v : mm) {
+            if (v == null) continue;
+            if (v > 0f) s += v;
+        }
+        return s;
+    }
+
+
+    private void logImagesInElement(DesignElementHandle el, String where, DebugSink log) throws SemanticException {
+        if (el == null) return;
+
+        if (el instanceof ImageHandle img) {
+            log.i("img: where=" + where
+                    + " id=" + img.getID()
+                    + " name=" + img.getName()
+                    + " source=" + img.getProperty(ImageHandle.SOURCE_PROP)
+                    + " imageName=" + img.getProperty(ImageHandle.IMAGE_NAME_PROP)
+                    + " uri=" + img.getProperty(ImageHandle.URI_PROP)
+                    + " w=" + img.getProperty(StyleHandle.WIDTH_PROP)
+                    + " h=" + img.getProperty(StyleHandle.HEIGHT_PROP));
+            return;
+        }
+
+        // рекурсивно по слотам (используй твои getSlotDefsCompat/getSlotHandleCompat)
+        List<?> slotDefs = getSlotDefsCompat(el);
+        if (slotDefs == null) return;
+
+        for (Object sd : slotDefs) {
+            String slotName = getSlotNameCompat(sd);
+            if (slotName == null || slotName.isBlank()) continue;
+            SlotHandle child = getSlotHandleCompat(el, sd, slotName);
+            logImagesInSlot(child, where + "/" + el.getClass().getSimpleName() + ":" + slotName, log);
+        }
+    }
+
+    private void logXmlImageGeometry(Path rpt, String imageName, DebugSink log) {
+        try {
+            var dbf = DocumentBuilderFactory.newInstance();
+            dbf.setNamespaceAware(true);
+            var db = dbf.newDocumentBuilder();
+
+            org.w3c.dom.Document doc;
+            try (InputStream in = Files.newInputStream(rpt)) { doc = db.parse(in); }
+
+            final String NS = doc.getDocumentElement().getNamespaceURI();
+
+            NodeList images = doc.getElementsByTagNameNS(NS, "image");
+            for (int i = 0; i < images.getLength(); i++) {
+                Element img = (Element) images.item(i);
+
+                String imgName = findProp(img, NS, "imageName");
+                if (imageName != null && !imageName.equals(imgName)) continue;
+
+                String src = findProp(img, NS, "source");
+                String w = findProp(img, NS, "width");
+                String h = findProp(img, NS, "height");
+
+                log.i("xml:image id=" + img.getAttribute("id")
+                        + " imageName=" + imgName
+                        + " source=" + src
+                        + " w=" + w + " h=" + h);
+            }
+        } catch (Exception e) {
+            log.i("xml:image log failed: " + e.getMessage());
+        }
+    }
+
+    private static String findProp(Element parent, String ns, String name) {
+        NodeList kids = parent.getChildNodes();
+        for (int i = 0; i < kids.getLength(); i++) {
+            Node n = kids.item(i);
+            if (n.getNodeType() != Node.ELEMENT_NODE) continue;
+            Element el = (Element) n;
+            if (!ns.equals(el.getNamespaceURI())) continue;
+            if (!"property".equals(el.getLocalName())) continue;
+            if (!name.equals(el.getAttribute("name"))) continue;
+            return el.getTextContent().trim();
+        }
+        return null;
+    }
+
+    private static float parseMm(String v) {
+        if (v == null) return 0f;
+        String s = v.trim().toLowerCase(Locale.ROOT);
+        if (s.endsWith("mm")) s = s.substring(0, s.length() - 2);
+        try { return Float.parseFloat(s.replace(',', '.')); } catch (Exception e) { return 0f; }
+    }
+
+    private static float getContentWidthMm(ReportDesignHandle report) throws SemanticException {
+        if (report.getMasterPages().getCount() == 0) return 0f;
+        var mp = (SimpleMasterPageHandle) report.getMasterPages().get(0);
+        float w = parseMm(String.valueOf(mp.getProperty("width")));
+        float ml = parseMm(String.valueOf(mp.getProperty("leftMargin")));
+        float mr = parseMm(String.valueOf(mp.getProperty("rightMargin")));
+        float cw = w - ml - mr;
+        return Math.max(cw, 0f);
+    }
+
+    private static void fixGridRowCellCounts(org.w3c.dom.Document doc) {
+        final String NS = "http://www.eclipse.org/birt/2005/design";
+
+        NodeList grids = doc.getElementsByTagNameNS(NS, "grid");
+        for (int gi = 0; gi < grids.getLength(); gi++) {
+            Element gridEl = (Element) grids.item(gi);
+
+            int cols = countDirectChildElements(gridEl, NS, "column");
+            if (cols <= 0) continue;
+
+            NodeList children = gridEl.getChildNodes();
+            for (int i = 0; i < children.getLength(); i++) {
+                Node n = children.item(i);
+                if (n.getNodeType() != Node.ELEMENT_NODE) continue;
+
+                Element rowEl = (Element) n;
+                if (!NS.equals(rowEl.getNamespaceURI())) continue;
+                if (!"row".equals(rowEl.getLocalName())) continue;
+
+                // собрать текущие cell (только direct children)
+                ArrayList<Element> cells = new ArrayList<>();
+                NodeList rowKids = rowEl.getChildNodes();
+                for (int j = 0; j < rowKids.getLength(); j++) {
+                    Node rc = rowKids.item(j);
+                    if (rc.getNodeType() != Node.ELEMENT_NODE) continue;
+                    Element cel = (Element) rc;
+                    if (NS.equals(cel.getNamespaceURI()) && "cell".equals(cel.getLocalName())) {
+                        cells.add(cel);
+                    }
+                }
+
+                // построить новый список ячеек с учетом colSpan
+                ArrayList<Element> rebuilt = new ArrayList<>(cols);
+                for (Element cellEl : cells) {
+                    int cs = getIntProperty(cellEl, NS, "colSpan", 1);
+                    if (cs < 1) cs = 1;
+
+                    rebuilt.add(cellEl);
+
+                    // вставляем (cs-1) drop-ячейки сразу после мастера
+                    for (int k = 1; k < cs; k++) {
+                        rebuilt.add(newDropCell(doc, NS));
+                    }
+                }
+
+                // добить до cols
+                while (rebuilt.size() < cols) {
+                    rebuilt.add(newDropCell(doc, NS));
+                }
+
+                // если переполнено — режем (лучше, чем отдавать битый дизайн)
+                if (rebuilt.size() > cols) {
+                    rebuilt.subList(cols, rebuilt.size()).clear();
+                }
+
+                // удалить все старые cell из row
+                for (Element old : cells) {
+                    rowEl.removeChild(old);
+                }
+
+                // вставить заново в конец row (в порядке)
+                for (Element c : rebuilt) {
+                    // гарантируем корректность drop-cell
+                    if (isDropAll(c, NS)) {
+                        removeProperty(c, NS, "colSpan");
+                        removeProperty(c, NS, "rowSpan");
+                        removeAllContentElements(c); // текст/грид/картинки
+                    }
+                    rowEl.appendChild(c);
+                }
+            }
+        }
+    }
+
+    private static Element newDropCell(org.w3c.dom.Document doc, String ns) {
+        Element cell = doc.createElementNS(ns, "cell");
+        Element p = doc.createElementNS(ns, "property");
+        p.setAttribute("name", "drop");
+        p.setTextContent("all");
+        cell.appendChild(p);
+        return cell;
+    }
+
+    private static boolean isDropAll(Element cellEl, String ns) {
+        NodeList kids = cellEl.getChildNodes();
+        for (int i = 0; i < kids.getLength(); i++) {
+            Node n = kids.item(i);
+            if (n.getNodeType() != Node.ELEMENT_NODE) continue;
+            Element el = (Element) n;
+            if (!ns.equals(el.getNamespaceURI())) continue;
+            if (!"property".equals(el.getLocalName())) continue;
+            if (!"drop".equals(el.getAttribute("name"))) continue;
+            return "all".equals(el.getTextContent().trim());
+        }
+        return false;
+    }
+
+    private static void removeProperty(Element parent, String ns, String name) {
+        NodeList kids = parent.getChildNodes();
+        for (int i = kids.getLength() - 1; i >= 0; i--) {
+            Node n = kids.item(i);
+            if (n.getNodeType() != Node.ELEMENT_NODE) continue;
+            Element el = (Element) n;
+            if (!ns.equals(el.getNamespaceURI())) continue;
+            if (!"property".equals(el.getLocalName())) continue;
+            if (!name.equals(el.getAttribute("name"))) continue;
+            parent.removeChild(el);
+        }
+    }
+
+    private static void removeAllContentElements(Element cellEl) {
+        NodeList kids = cellEl.getChildNodes();
+        for (int i = kids.getLength() - 1; i >= 0; i--) {
+            Node n = kids.item(i);
+            if (n.getNodeType() != Node.ELEMENT_NODE) continue;
+            Element el = (Element) n;
+            String ln = el.getLocalName();
+            if ("text".equals(ln) || "text-data".equals(ln) || "grid".equals(ln) || "image".equals(ln)) {
+                cellEl.removeChild(el);
+            }
+        }
     }
 
 

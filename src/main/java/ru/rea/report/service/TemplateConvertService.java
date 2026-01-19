@@ -27,9 +27,27 @@ public class TemplateConvertService {
     private final BirtDesignBuilder birtDesignBuilder;
 
     public byte[] convertToRptdesign(MultipartFile file, TemplateType type) {
+        return convertToRptdesign(file, type, null);
+    }
+
+    public byte[] convertToRptdesign(MultipartFile file, TemplateType type, MultipartFile optionalPng) {
         try (InputStream in = file.getInputStream()) {
             System.out.println("[TPLGEN] multipart type=" + type);
-            return convert(in, type);
+
+            Path pngPath = null;
+            if (optionalPng != null && !optionalPng.isEmpty()) {
+                String original = optionalPng.getOriginalFilename();
+                String suffix = (original != null && original.toLowerCase().endsWith(".png")) ? ".png" : ".png";
+                Path tmp = Files.createTempFile("tplgen-png-", suffix);
+                tmp.toFile().deleteOnExit();
+                try (InputStream pin = optionalPng.getInputStream()) {
+                    Files.copy(pin, tmp, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+                pngPath = tmp;
+                System.out.println("[TPLGEN] png=" + pngPath);
+            }
+
+            return convert(in, type, pngPath);
         } catch (IllegalArgumentException e) {
             throw new BadTemplateException(e.getMessage(), e);
         } catch (BadTemplateException e) {
@@ -40,11 +58,18 @@ public class TemplateConvertService {
     }
 
     public byte[] convertToRptdesign(Path inputPath) {
+        return convertToRptdesign(inputPath, null);
+    }
+
+    public byte[] convertToRptdesign(Path inputPath, Path optionalPngPath) {
         TemplateType type = detectType(inputPath);
         System.out.println("[TPLGEN] input=" + inputPath + " type=" + type);
+        if (optionalPngPath != null) {
+            System.out.println("[TPLGEN] png=" + optionalPngPath);
+        }
 
         try (InputStream in = Files.newInputStream(inputPath)) {
-            return convert(in, type);
+            return convert(in, type, optionalPngPath);
         } catch (BadTemplateException e) {
             throw e;
         } catch (Exception e) {
@@ -52,7 +77,7 @@ public class TemplateConvertService {
         }
     }
 
-    private byte[] convert(InputStream in, TemplateType type) throws Exception {
+    private byte[] convert(InputStream in, TemplateType type, Path optionalPngPath) throws Exception {
         long t0 = System.nanoTime();
 
         System.out.println("[TPLGEN] step=read:start");
@@ -76,7 +101,9 @@ public class TemplateConvertService {
         System.out.println("[TPLGEN] step=build:start");
         long t7 = System.nanoTime();
         ByteArrayOutputStream out = new ByteArrayOutputStream(256 * 1024);
-        birtDesignBuilder.build(ir, tags, out);
+
+        birtDesignBuilder.build(ir, tags, optionalPngPath, out);
+
         long t8 = System.nanoTime();
         System.out.println("[TPLGEN] step=build:done ms=" + ms(t8 - t7));
 

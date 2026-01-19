@@ -47,12 +47,41 @@ public final class RptDesignSanitizer {
                 sanitizeGrid(doc, gridEl, ns, opt);
             }
 
+            if (opt.fixRowCellCount) {
+                fixGridRowCellCounts(doc, ns);
+            }
+
             write(doc, rptDesign);
 
         } catch (Exception e) {
             throw new IllegalStateException("Failed to sanitize rptdesign: " + rptDesign, e);
         }
     }
+
+    private static void fixGridRowCellCounts(Document doc, String ns) {
+        NodeList grids = doc.getElementsByTagNameNS(ns, "grid");
+        for (int gi = 0; gi < grids.getLength(); gi++) {
+            Element gridEl = (Element) grids.item(gi);
+
+            int cols = countDirect(gridEl, ns, "column");
+            if (cols <= 0) continue;
+
+            NodeList children = gridEl.getChildNodes();
+            for (int i = 0; i < children.getLength(); i++) {
+                Node n = children.item(i);
+                if (n.getNodeType() != Node.ELEMENT_NODE) continue;
+
+                Element rowEl = (Element) n;
+                if (!ns.equals(rowEl.getNamespaceURI())) continue;
+                if (!"row".equals(rowEl.getLocalName())) continue;
+
+                // дальше тело твоего fixGridRowCellCounts без изменений,
+                // только newDropCell(doc, ns) и getIntProperty(..., ns, ...)
+            }
+        }
+    }
+
+
 
     private static void sanitizeGrid(Document doc, Element gridEl, String ns, Options opt) {
         int cols = countDirect(gridEl, ns, "column");

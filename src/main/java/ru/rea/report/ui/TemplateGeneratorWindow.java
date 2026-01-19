@@ -17,6 +17,7 @@ import ru.rea.report.service.TemplateConvertService;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.nio.file.Path;
 
 @Component
 @RequiredArgsConstructor
@@ -39,6 +40,14 @@ public class TemplateGeneratorWindow {
 
         Button outputBtn = new Button("Сохранить как…");
 
+        TextField pngField = new TextField();
+        pngField.setPromptText("Необязательно: PNG (логотип/картинка)");
+        pngField.setEditable(false);
+
+        Button pngBtn = new Button("PNG…");
+        Button pngClearBtn = new Button("Очистить");
+        pngClearBtn.setDisable(true);
+
         Button runBtn = new Button("Сконвертировать");
         runBtn.setDisable(true);
 
@@ -53,7 +62,6 @@ public class TemplateGeneratorWindow {
         progressBar.setMaxWidth(Double.MAX_VALUE);
         progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
 
-
         FileChooser inChooser = new FileChooser();
         inChooser.getExtensionFilters().addAll(
                 new FileChooser.ExtensionFilter("ODF templates", "*.odt", "*.ods"),
@@ -66,8 +74,15 @@ public class TemplateGeneratorWindow {
                 new FileChooser.ExtensionFilter("BIRT design", "*.rptdesign")
         );
 
+        FileChooser pngChooser = new FileChooser();
+        pngChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("PNG image", "*.png"),
+                new FileChooser.ExtensionFilter("Images", "*.png")
+        );
+
         final File[] inputFile = {null};
         final File[] outputFile = {null};
+        final File[] pngFile = {null};
 
         inputBtn.setOnAction(e -> {
             File f = inChooser.showOpenDialog(stage);
@@ -94,12 +109,31 @@ public class TemplateGeneratorWindow {
             }
         });
 
+        pngBtn.setOnAction(e -> {
+            File f = pngChooser.showOpenDialog(stage);
+            if (f != null) {
+                pngFile[0] = f;
+                pngField.setText(f.getAbsolutePath());
+                pngClearBtn.setDisable(false);
+                status.setText("");
+            }
+        });
+
+        pngClearBtn.setOnAction(e -> {
+            pngFile[0] = null;
+            pngField.setText("");
+            pngClearBtn.setDisable(true);
+            status.setText("");
+        });
+
         runBtn.setOnAction(e -> {
             if (inputFile[0] == null || outputFile[0] == null) return;
 
             runBtn.setDisable(true);
             inputBtn.setDisable(true);
             outputBtn.setDisable(true);
+            pngBtn.setDisable(true);
+            pngClearBtn.setDisable(true);
 
             progress.setVisible(true);
             progressBar.setVisible(true);
@@ -109,7 +143,10 @@ public class TemplateGeneratorWindow {
             Task<Void> task = new Task<>() {
                 @Override
                 protected Void call() throws Exception {
-                    byte[] rpt = convertService.convertToRptdesign(inputFile[0].toPath());
+                    Path pngPath = (pngFile[0] == null) ? null : pngFile[0].toPath();
+
+                    byte[] rpt = convertService.convertToRptdesign(inputFile[0].toPath(), pngPath);
+
                     Files.write(outputFile[0].toPath(), rpt);
                     return null;
                 }
@@ -123,6 +160,8 @@ public class TemplateGeneratorWindow {
 
                 inputBtn.setDisable(false);
                 outputBtn.setDisable(false);
+                pngBtn.setDisable(false); // NEW
+                pngClearBtn.setDisable(pngFile[0] == null); // NEW
                 updateRunEnabled(runBtn, inputFile[0], outputFile[0]);
             });
 
@@ -138,6 +177,8 @@ public class TemplateGeneratorWindow {
 
                 inputBtn.setDisable(false);
                 outputBtn.setDisable(false);
+                pngBtn.setDisable(false); // NEW
+                pngClearBtn.setDisable(pngFile[0] == null); // NEW
                 updateRunEnabled(runBtn, inputFile[0], outputFile[0]);
             });
 
@@ -159,13 +200,17 @@ public class TemplateGeneratorWindow {
         grid.add(outputField, 1, 1);
         grid.add(outputBtn, 2, 1);
 
+        grid.add(new Label("PNG:"), 0, 2);
+        grid.add(pngField, 1, 2);
+        HBox pngActions = new HBox(10, pngBtn, pngClearBtn);
+        grid.add(pngActions, 2, 2);
+
         HBox actions = new HBox(10, runBtn, progress);
         VBox root = new VBox(10, grid, actions, progressBar, status);
         root.setPadding(new Insets(12));
 
         HBox.setHgrow(runBtn, Priority.NEVER);
         VBox.setVgrow(grid, Priority.NEVER);
-
 
         ColumnConstraints c0 = new ColumnConstraints();
         c0.setMinWidth(70);
@@ -178,7 +223,7 @@ public class TemplateGeneratorWindow {
 
         grid.getColumnConstraints().addAll(c0, c1, c2);
 
-        stage.setScene(new Scene(root, 760, 190));
+        stage.setScene(new Scene(root, 760, 235));
         stage.show();
     }
 

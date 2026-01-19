@@ -10,12 +10,17 @@ import ru.rea.report.exception.BadTemplateException;
 import ru.rea.report.ir.*;
 
 import java.io.InputStream;
+import java.util.Locale;
 
 @Component
 public class OdtReader {
 
     private static final String TEXT_NS   = OdtStyleResolver.TEXT_NS;
     private static final String TABLE_NS  = OdtStyleResolver.TABLE_NS;
+    private static final String DRAW_NS = "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0";
+    private static final String SVG_NS  = "urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0";
+    private static final String XLINK_NS = "http://www.w3.org/1999/xlink";
+
 
     public TemplateDocumentIR read(InputStream in) {
         try {
@@ -63,12 +68,23 @@ public class OdtReader {
         if (node == null) return;
 
         if (is(node, TEXT_NS, "p")) {
-            ParagraphIR p = parseParagraph((Element) node, styles, ctx.currentPrefix());
+            Element pEl = (Element) node;
+
+            ImageIR img = findFirstImageInParagraph(pEl);
+            if (img != null) {
+                if (!paragraphHasMeaningfulText(pEl)) {
+                    ir.add(img);
+                    return;
+                }
+                ir.add(img);
+            }
+            ParagraphIR p = parseParagraph(pEl, styles, ctx.currentPrefix());
             if (p != null && p.getText() != null && !p.getText().isBlank()) {
                 ir.add(p);
             }
             return;
         }
+
 
         if (is(node, TEXT_NS, "list")) {
             ctx.pushLevel();
@@ -98,6 +114,13 @@ public class OdtReader {
             }
             return;
         }
+
+        if (is(node, DRAW_NS, "frame")) {
+            ImageIR img = parseImageFrame((Element) node);
+            if (img != null) ir.add(img);
+            return;
+        }
+
 
         NodeList kids = node.getChildNodes();
         for (int i = 0; i < kids.getLength(); i++) {
@@ -368,4 +391,86 @@ public class OdtReader {
             return def;
         }
     }
+
+    private static ImageIR findFirstImageInParagraph(Element pEl) {
+        NodeList kids = pEl.getChildNodes();
+        for (int i = 0; i < kids.getLength(); i++) {
+            Node n = kids.item(i);
+            if (is(n, DRAW_NS, "frame")) {
+                return parseImageFrame((Element) n);
+            }
+        }
+        return null;
+    }
+
+    private static ImageIR parseImageFrame(Element frameEl) {
+        if (frameEl == null) return null;
+
+        if (!hasChild(frameEl, DRAW_NS, "image")) return null;
+
+        String w = frameEl.getAttributeNS(SVG_NS, "width");
+        String h = frameEl.getAttributeNS(SVG_NS, "height");
+
+        Float wMm = parseLengthToMm(w);
+        Float hMm = parseLengthToMm(h);
+
+        ImageIR ir = new ImageIR();
+        ir.setWidthMm(wMm);
+        ir.setHeightMm(hMm);
+
+        String anchor = frameEl.getAttributeNS(TEXT_NS, "anchor-type");
+        if (anchor != null && !anchor.isBlank()) ir.setAnchorType(anchor.trim());
+
+        String name = frameEl.getAttributeNS(DRAW_NS, "name"); // draw:name
+        if (name != null && !name.isBlank()) ir.setName(name.trim());
+
+        return ir;
+    }
+
+    private static boolean hasChild(Element parent, String ns, String local) {
+        NodeList kids = parent.getChildNodes();
+        for (int i = 0; i < kids.getLength(); i++) {
+            Node n = kids.item(i);
+            if (is(n, ns, local)) return true;
+        }
+        return false;
+    }
+
+    private static Float parseLengthToMm(String s) {
+        if (s == null) return null;
+        String v = s.trim().toLowerCase(Locale.ROOT);
+        if (v.isEmpty()) return null;
+
+        try {
+            if (v.endsWith("mm")) return Float.parseFloat(v.replace("mm", "").trim());
+            if (v.endsWith("cm")) return Float.parseFloat(v.replace("cm", "").trim()) * 10f;
+            if (v.endsWith("pt")) return Float.parseFloat(v.replace("pt", "").trim()) * (25.4f / 72f);
+            if (v.endsWith("in")) return Float.parseFloat(v.replace("in", "").trim()) * 25.4f;
+            return Float.parseFloat(v);
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
+    private static boolean paragraphHasMeaningfulText(Element pEl) {
+        if (pEl == null) return false;
+
+        NodeList kids = pEl.getChildNodes();
+        for (int i = 0; i < kids.getLength(); i++) {
+            Node n = kids.item(i);
+
+            if (n.getNodeType() == Node.TEXT_NODE) {
+                String s = n.getNodeValue();
+                if (s != null && !s.trim().isEmpty()) return true;
+            }
+
+            if (is(n, TEXT_NS, "s")) continue;
+
+            if (is(n, TEXT_NS, "span")) {
+                if (paragraphHasMeaningfulText((Element) n)) return true;
+            }
+        }
+        return false;
+    }
+
+
 }

@@ -15,6 +15,8 @@ public final class TableIR implements BlockIR {
     private final List<RowIR> rows = new ArrayList<>();
     private List<Float> columnWidthsMm;
     private String sheetName;
+    private List<Float> colWidthsMm;
+    private boolean fromOds;
     public TableIR addRow(RowIR row) {
         rows.add(row);
         return this;
