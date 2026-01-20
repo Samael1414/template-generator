@@ -2,7 +2,6 @@ package ru.rea.report.birt;
 
 import com.ibm.icu.util.ULocale;
 import lombok.RequiredArgsConstructor;
-import org.apache.logging.log4j.util.Supplier;
 import org.eclipse.birt.report.model.api.*;
 import org.eclipse.birt.report.model.api.activity.SemanticException;
 import org.eclipse.birt.report.model.api.core.IModuleModel;
@@ -1017,13 +1016,7 @@ public class BirtDesignBuilder {
 
 
     private static void applyCellStyle(CellHandle cell, StyleIR st) throws SemanticException {
-        final String baseColor = "#000000";
-        final String baseWidthPx = "1px";
-
-        setBorderSide(cell, StyleHandle.BORDER_TOP_COLOR_PROP,   StyleHandle.BORDER_TOP_STYLE_PROP,   StyleHandle.BORDER_TOP_WIDTH_PROP,   baseColor, baseWidthPx);
-        setBorderSide(cell, StyleHandle.BORDER_BOTTOM_COLOR_PROP,StyleHandle.BORDER_BOTTOM_STYLE_PROP,StyleHandle.BORDER_BOTTOM_WIDTH_PROP,baseColor, baseWidthPx);
-        setBorderSide(cell, StyleHandle.BORDER_LEFT_COLOR_PROP,  StyleHandle.BORDER_LEFT_STYLE_PROP,  StyleHandle.BORDER_LEFT_WIDTH_PROP,  baseColor, baseWidthPx);
-        setBorderSide(cell, StyleHandle.BORDER_RIGHT_COLOR_PROP, StyleHandle.BORDER_RIGHT_STYLE_PROP, StyleHandle.BORDER_RIGHT_WIDTH_PROP, baseColor, baseWidthPx);
+        clearBorders(cell);
 
         if (st == null) return;
 
@@ -1036,31 +1029,76 @@ public class BirtDesignBuilder {
             cell.setProperty(StyleHandle.TEXT_ALIGN_PROP, birtAlign);
         }
 
-        String borderColor = (st.getBorderColor() != null && !st.getBorderColor().isBlank())
+        String color = (st.getBorderColor() != null && !st.getBorderColor().isBlank())
                 ? st.getBorderColor()
-                : baseColor;
+                : "#000000";
 
-        cell.setProperty(StyleHandle.BORDER_TOP_COLOR_PROP, borderColor);
-        cell.setProperty(StyleHandle.BORDER_BOTTOM_COLOR_PROP, borderColor);
-        cell.setProperty(StyleHandle.BORDER_LEFT_COLOR_PROP, borderColor);
-        cell.setProperty(StyleHandle.BORDER_RIGHT_COLOR_PROP, borderColor);
+        applyBorderSideIfPresent(cell,
+                StyleHandle.BORDER_TOP_COLOR_PROP, StyleHandle.BORDER_TOP_STYLE_PROP, StyleHandle.BORDER_TOP_WIDTH_PROP,
+                color, st.getBorderTopWidthPt());
 
-        String topW = toBirtBorderWidthPx(st.getBorderTopWidthPt());
-        String bottomW = toBirtBorderWidthPx(st.getBorderBottomWidthPt());
-        String leftW = toBirtBorderWidthPx(st.getBorderLeftWidthPt());
-        String rightW = toBirtBorderWidthPx(st.getBorderRightWidthPt());
+        applyBorderSideIfPresent(cell,
+                StyleHandle.BORDER_BOTTOM_COLOR_PROP, StyleHandle.BORDER_BOTTOM_STYLE_PROP, StyleHandle.BORDER_BOTTOM_WIDTH_PROP,
+                color, st.getBorderBottomWidthPt());
 
-        if (topW != null)    cell.setProperty(StyleHandle.BORDER_TOP_WIDTH_PROP, topW);
-        if (bottomW != null) cell.setProperty(StyleHandle.BORDER_BOTTOM_WIDTH_PROP, bottomW);
-        if (leftW != null)   cell.setProperty(StyleHandle.BORDER_LEFT_WIDTH_PROP, leftW);
-        if (rightW != null)  cell.setProperty(StyleHandle.BORDER_RIGHT_WIDTH_PROP, rightW);
+        applyBorderSideIfPresent(cell,
+                StyleHandle.BORDER_LEFT_COLOR_PROP, StyleHandle.BORDER_LEFT_STYLE_PROP, StyleHandle.BORDER_LEFT_WIDTH_PROP,
+                color, st.getBorderLeftWidthPt());
+
+        applyBorderSideIfPresent(cell,
+                StyleHandle.BORDER_RIGHT_COLOR_PROP, StyleHandle.BORDER_RIGHT_STYLE_PROP, StyleHandle.BORDER_RIGHT_WIDTH_PROP,
+                color, st.getBorderRightWidthPt());
 
         if (st.getPaddingTopPt() != null) cell.setProperty(StyleHandle.PADDING_TOP_PROP, toBirtPt(st.getPaddingTopPt()));
         if (st.getPaddingBottomPt() != null) cell.setProperty(StyleHandle.PADDING_BOTTOM_PROP, toBirtPt(st.getPaddingBottomPt()));
         if (st.getPaddingLeftPt() != null) cell.setProperty(StyleHandle.PADDING_LEFT_PROP, toBirtPt(st.getPaddingLeftPt()));
         if (st.getPaddingRightPt() != null) cell.setProperty(StyleHandle.PADDING_RIGHT_PROP, toBirtPt(st.getPaddingRightPt()));
-
     }
+
+    private static void clearBorders(CellHandle cell) throws SemanticException {
+        cell.clearProperty(StyleHandle.BORDER_TOP_COLOR_PROP);
+        cell.clearProperty(StyleHandle.BORDER_BOTTOM_COLOR_PROP);
+        cell.clearProperty(StyleHandle.BORDER_LEFT_COLOR_PROP);
+        cell.clearProperty(StyleHandle.BORDER_RIGHT_COLOR_PROP);
+
+        cell.setProperty(StyleHandle.BORDER_TOP_STYLE_PROP, DesignChoiceConstants.LINE_STYLE_NONE);
+        cell.setProperty(StyleHandle.BORDER_BOTTOM_STYLE_PROP, DesignChoiceConstants.LINE_STYLE_NONE);
+        cell.setProperty(StyleHandle.BORDER_LEFT_STYLE_PROP, DesignChoiceConstants.LINE_STYLE_NONE);
+        cell.setProperty(StyleHandle.BORDER_RIGHT_STYLE_PROP, DesignChoiceConstants.LINE_STYLE_NONE);
+
+        cell.clearProperty(StyleHandle.BORDER_TOP_WIDTH_PROP);
+        cell.clearProperty(StyleHandle.BORDER_BOTTOM_WIDTH_PROP);
+        cell.clearProperty(StyleHandle.BORDER_LEFT_WIDTH_PROP);
+        cell.clearProperty(StyleHandle.BORDER_RIGHT_WIDTH_PROP);
+    }
+
+    private static void applyBorderSideIfPresent(
+            CellHandle cell,
+            String colorProp,
+            String styleProp,
+            String widthProp,
+            String color,
+            Float widthPt
+    ) throws SemanticException {
+        if (widthPt == null || widthPt <= 0.01f) return;
+
+        cell.setProperty(colorProp, color);
+        cell.setProperty(styleProp, DesignChoiceConstants.LINE_STYLE_SOLID);
+
+        int px = ptToPx(widthPt);
+
+        if (px <= 1) px = 1;
+
+        cell.setProperty(widthProp, px + "px");
+    }
+
+    private static int ptToPx(float pt) {
+        float pxF = pt * (96f / 72f);
+        int px = Math.round(pxF);
+        return Math.max(px, 1);
+    }
+
+
 
     private static String toBirtPt(Float pt) {
         if (pt == null) return null;
